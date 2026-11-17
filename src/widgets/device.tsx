@@ -387,7 +387,7 @@ export function NowPlayingPanel() {
 
 // ---- Screen time ---------------------------------------------------------------
 
-type Today = { total: number; hours: number[]; apps: { name: string; exe: string; secs: number }[] };
+type Today = { total: number; hours: number[]; apps: { name: string; exe: string; secs: number }[]; source?: "windows" | "dock" };
 
 const DEMO_TODAY: Today = {
   total: 8400,
@@ -494,7 +494,11 @@ export function ScreenTimePanel() {
           </li>
         ))}
       </ul>
-      <p className="fine">Counted while you use the PC; kept only on this PC.</p>
+      <p className="fine">
+        {t.source === "windows"
+          ? "Total and hours from Windows (screen-on time today). Apps are counted by the dock while it runs. Kept only on this PC."
+          : "Counted by the dock while you use the PC (Windows' record wasn't available). Kept only on this PC."}
+      </p>
     </div>
   );
 }
