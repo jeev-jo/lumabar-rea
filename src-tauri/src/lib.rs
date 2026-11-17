@@ -1,6 +1,8 @@
+mod ai_usage;
 mod apps;
 mod dock;
 mod preview;
+mod secrets;
 mod settings;
 mod stats;
 mod weather;
@@ -212,6 +214,11 @@ pub fn run() {
             widgets::popover_toggle,
             widgets::popover_hide,
             widgets::open_widget_picker,
+            ai_usage::ai_key_status,
+            ai_usage::ai_set_key,
+            ai_usage::ai_clear_key,
+            ai_usage::ai_claude_code_found,
+            ai_usage::ai_usage_fetch,
         ])
         .build(tauri::generate_context!())
         .expect("error while building luma-ai-bar")

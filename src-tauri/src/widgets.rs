@@ -66,6 +66,8 @@ pub fn widgets_add(app: AppHandle, kind: String, size: String, config: Option<Va
 pub fn widgets_remove(app: AppHandle, id: String) {
     settings::update(|s| s.widgets.retain(|w| w.id != id));
     let _ = fs::remove_file(data_file(&id));
+    // An AI usage widget's encrypted key and cached reading go with it.
+    crate::ai_usage::forget(&id);
     broadcast(&app);
 }
 

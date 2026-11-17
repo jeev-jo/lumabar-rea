@@ -20,6 +20,7 @@
   --series-3: #199e70;
   --critical: #ff6b5e;
   --on-accent: #0b1a26;
+  --warning: #f0b429;
   color-scheme: dark;
 }
 
@@ -41,6 +42,7 @@
   --series-3: #1baf7a;
   --critical: #c42b1c;
   --on-accent: #ffffff;
+  --warning: #9a6700;
   color-scheme: light;
 }
 
@@ -63,6 +65,7 @@
     --series-3: #1baf7a;
     --critical: #c42b1c;
     --on-accent: #ffffff;
+    --warning: #9a6700;
     color-scheme: light;
   }
 }

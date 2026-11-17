@@ -658,3 +658,171 @@ html.popover-page #root {
   color: var(--on-accent) !important;
   min-width: 0 !important;
 }
+
+/* ---- AI usage ---------------------------------------------------------- */
+
+.w-ai {
+  flex-wrap: wrap;
+  row-gap: 3px !important;
+  align-content: center;
+}
+
+.w-ai .who {
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.w-ai .value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.w-ai .value b {
+  font-size: 14px;
+}
+
+.w-ai .setup {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.w-ai.stale .value b {
+  opacity: 0.55;
+}
+
+.glyph.warn {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 11px;
+  color: var(--warning);
+}
+
+.glyph.ok {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  color: var(--series-3);
+}
+
+/* Meter: fill carries severity; the track is a quiet step behind it. */
+.meter {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--divider);
+  overflow: hidden;
+}
+
+.meter.thin {
+  height: 4px;
+  flex-basis: 100%;
+}
+
+.meter i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.meter.warning i {
+  background: var(--warning);
+}
+
+.meter.critical i {
+  background: var(--critical);
+}
+
+.w-ai-panel select {
+  margin-bottom: 10px;
+}
+
+.key-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+
+.key-form .fine,
+.key-form .error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.key-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.experimental {
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--warning);
+  background: var(--hover);
+}
+
+.experimental .found {
+  margin-top: 6px;
+  opacity: 0.8;
+}
+
+.reading {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reading.stale {
+  opacity: 0.6;
+}
+
+.reading .headline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.reading .headline b {
+  font-size: 26px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.reading .headline span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.meter-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meter-row .meter-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.meter-row small {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.reading .line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.w-ai-panel .actions {
+  align-items: center;
+}

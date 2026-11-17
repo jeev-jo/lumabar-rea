@@ -6,6 +6,7 @@ import { TodoPanel, TodoTile } from "./todo";
 import { NotesPanel, NotesTile } from "./notes";
 import { PomodoroPanel, PomodoroTile } from "./pomodoro";
 import { WorldClockPanel, WorldClockTile } from "./worldclock";
+import { AiPanel, AiTile } from "./ai";
 
 /**
  * A widget = this manifest + a Tile (in the dock) + a Panel (the expanded view
@@ -14,7 +15,7 @@ import { WorldClockPanel, WorldClockTile } from "./worldclock";
 export type WidgetKind = {
   kind: string;
   name: string;
-  group: "Clocks" | "Productivity" | "System" | "Weather";
+  group: "AI" | "Clocks" | "Productivity" | "System" | "Weather";
   description: string;
   sizes: WidgetSize[];
   defaultSize: WidgetSize;
@@ -27,6 +28,17 @@ export type WidgetKind = {
 };
 
 export const WIDGETS: WidgetKind[] = [
+  {
+    kind: "ai",
+    name: "AI usage",
+    group: "AI",
+    description: "Claude or OpenAI spend, DeepSeek balance, or Claude plan limits.",
+    sizes: ["s", "m", "l"],
+    defaultSize: "m",
+    panel: { width: 350, height: 500 },
+    Tile: AiTile,
+    Panel: AiPanel,
+  },
   {
     kind: "system",
     name: "System monitor",
@@ -95,7 +107,7 @@ export const WIDGETS: WidgetKind[] = [
   },
 ];
 
-export const GROUPS = ["Clocks", "Productivity", "System", "Weather"] as const;
+export const GROUPS = ["AI", "Clocks", "Productivity", "System", "Weather"] as const;
 
 export const byKind = (kind: string) => WIDGETS.find((w) => w.kind === kind);
 
