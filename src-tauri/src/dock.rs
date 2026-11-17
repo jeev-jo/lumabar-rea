@@ -163,21 +163,23 @@ unsafe extern "system" fn subclass_proc(
             ABN_FULLSCREENAPP => {
                 // A fullscreen app covers our display: drop behind it; come back after.
                 let after = if lparam.0 != 0 { HWND_BOTTOM } else { HWND_TOPMOST };
-                let _ = SetWindowPos(
-                    hwnd,
-                    Some(after),
-                    0,
-                    0,
-                    0,
-                    0,
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
-                );
+                let _ = unsafe {
+                    SetWindowPos(
+                        hwnd,
+                        Some(after),
+                        0,
+                        0,
+                        0,
+                        0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                    )
+                };
             }
             _ => {}
         }
         return LRESULT(0);
     }
-    let result = DefSubclassProc(hwnd, msg, wparam, lparam);
+    let result = unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) };
     if msg == WM_DISPLAYCHANGE || msg == WM_DPICHANGED {
         apply_position();
     }
