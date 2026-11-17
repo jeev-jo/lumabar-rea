@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- luma-ai-bar app icon: a frosted dock bar resting on a blue-violet tile. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d8bff"/>
+      <stop offset="1" stop-color="#6a3df0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.2" r="0.8">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.25"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="220" fill="url(#bg)"/>
+  <rect x="32" y="32" width="960" height="960" rx="220" fill="url(#glow)"/>
+  <!-- the dock -->
+  <rect x="150" y="600" width="724" height="200" rx="64" fill="url(#glass)" stroke="#ffffff" stroke-opacity="0.75" stroke-width="10"/>
+  <!-- three tiles on it -->
+  <rect x="210" y="648" width="104" height="104" rx="30" fill="#ffffff"/>
+  <rect x="352" y="648" width="104" height="104" rx="30" fill="#ffffff" fill-opacity="0.8"/>
+  <rect x="494" y="648" width="320" height="104" rx="30" fill="#ffffff" fill-opacity="0.6"/>
+  <!-- a soft light above the dock -->
+  <circle cx="512" cy="360" r="120" fill="#ffffff" fill-opacity="0.9"/>
+  <circle cx="512" cy="360" r="190" fill="#ffffff" fill-opacity="0.18"/>
+</svg>

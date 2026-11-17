@@ -1509,3 +1509,23 @@ html.popover-page #root {
   opacity: 0.7;
   text-align: center;
 }
+
+/* wallpaper: "Next background" for Spotlight or a slideshow */
+.panel button.next-bg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel button.next-bg .glyph {
+  font-size: 14px;
+}
+
+.panel button.next-bg:disabled {
+  opacity: 0.6;
+}
+
+.wallpaper-big.busy {
+  opacity: 0.55;
+  transition: opacity 200ms;
+}

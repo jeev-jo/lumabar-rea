@@ -58,6 +58,8 @@ tauri-plugin-global-shortcut = "2"
 png = "0.18"
 base64 = "0.22"
 ureq = { version = "2", features = ["json"] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

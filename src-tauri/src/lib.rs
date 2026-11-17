@@ -33,6 +33,8 @@ pub fn run() {
     taskbar::install_panic_hook();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -73,6 +75,7 @@ pub fn run() {
             taskbar::restore();
             taskbar::spawn_watchdog();
             settings::apply_taskbar_mode(settings::get().taskbar_mode);
+            settings::refresh_autostart();
 
             let settings_item = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
             let widgets_item = MenuItem::with_id(app, "widgets", "Widgets…", true, None::<&str>)?;
@@ -192,6 +195,7 @@ pub fn run() {
             settings::list_displays,
             settings::get_autostart,
             settings::set_autostart,
+            settings::prepare_update,
             settings::open_settings,
             apps::apps_snapshot,
             apps::app_icon,
@@ -218,6 +222,8 @@ pub fn run() {
             system::open_quick_list,
             glass::glass_frame,
             system::wallpaper_image,
+            system::wallpaper_next,
+            system::wallpaper_next_kind,
             screentime::screen_time_today,
             stats::stats_history,
             weather::weather_get,

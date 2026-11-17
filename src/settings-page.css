@@ -169,3 +169,13 @@ select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+.action.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+}
+
+.action:disabled {
+  opacity: 0.55;
+}

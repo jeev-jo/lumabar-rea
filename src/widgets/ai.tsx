@@ -158,13 +158,16 @@ function Tile({ instance, preview, provider }: WidgetProps<AiConfig> & { provide
   const meters = r?.meters ?? [];
   const icon = <ServiceIcon service={svc.icon} label={svc.short} size={instance.size === "s" ? 18 : 22} />;
 
-  // Plan limits: Session and Weekly side by side.
-  if (meters.length > 1 && instance.size !== "s") {
+  // Plan limits: only Session and Weekly in the dock; extra usage and the
+  // per-model limits are in the details.
+  const main = meters.filter((m) => m.label === "Session" || m.label === "Weekly");
+  const shown = main.length > 1 ? main : meters.slice(0, 2);
+  if (shown.length > 1 && instance.size !== "s") {
     return (
       <div className={`w-ai multi ${instance.size}${stale ? " stale" : ""}`} title={title}>
         {icon}
         <span className="mrows">
-          {meters.slice(0, 2).map((m) => (
+          {shown.map((m) => (
             <span key={m.label} className="mrow">
               <small>{m.label}</small>
               <MeterBar m={m} thin />

@@ -461,8 +461,8 @@ fn open_uri(uri: &str) {
 }
 
 /// The desktop wallpaper as a thumbnail data URL.
-#[tauri::command]
-pub async fn wallpaper_image() -> Option<String> {
+/// The current wallpaper file, if a picture is set.
+fn wallpaper_path() -> Option<String> {
     use windows::Win32::UI::WindowsAndMessaging::{
         SystemParametersInfoW, SPI_GETDESKWALLPAPER, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
     };
@@ -478,9 +478,82 @@ pub async fn wallpaper_image() -> Option<String> {
     }
     let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
     let path = String::from_utf16_lossy(&buf[..end]);
-    if path.is_empty() {
-        return None;
+    (!path.is_empty()).then_some(path)
+}
+
+/// The desktop menu's "Next background" for Windows Spotlight: an Explorer
+/// command registered under DesktopBackground\Shell\.SpotlightNextImage.
+const SPOTLIGHT_NEXT: windows::core::GUID = windows::core::GUID::from_u128(0x2ECAB2B4_B6A8_5482_0AE6_D1A5BF594B00);
+
+fn spotlight_next_command() -> Option<windows::Win32::UI::Shell::IExplorerCommand> {
+    use windows::Win32::UI::Shell::{IExplorerCommand, ECS_ENABLED};
+    let cmd: IExplorerCommand = unsafe { CoCreateInstance(&SPOTLIGHT_NEXT, None, CLSCTX_ALL).ok()? };
+    let state = unsafe { cmd.GetState(None, true).ok()? };
+    // Hidden or disabled when Spotlight isn't the desktop background.
+    (state == ECS_ENABLED.0 as u32).then_some(cmd)
+}
+
+/// What "next" would do: "spotlight", "slideshow", or None.
+fn next_kind() -> Option<&'static str> {
+    use windows::Win32::UI::Shell::{DesktopWallpaper, IDesktopWallpaper, DSS_ENABLED};
+    if spotlight_next_command().is_some() {
+        return Some("spotlight");
     }
+    let wp: IDesktopWallpaper = unsafe { CoCreateInstance(&DesktopWallpaper, None, CLSCTX_ALL).ok()? };
+    let status = unsafe { wp.GetStatus().ok()? };
+    (status.0 & DSS_ENABLED.0 != 0).then_some("slideshow")
+}
+
+fn com_sta() {
+    use windows::Win32::System::Com::COINIT_APARTMENTTHREADED;
+    let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+}
+
+/// Whether the wallpaper can move to the next picture (Spotlight or a slideshow).
+#[tauri::command]
+pub async fn wallpaper_next_kind() -> Option<&'static str> {
+    tauri::async_runtime::spawn_blocking(|| {
+        com_sta();
+        next_kind()
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+/// Move to the next Spotlight picture (or slideshow picture). Windows swaps
+/// the file a few seconds later; "wallpaper-changed" is sent when it has.
+#[tauri::command]
+pub fn wallpaper_next(app: AppHandle) -> Result<(), String> {
+    std::thread::spawn(move || {
+        use windows::Win32::UI::Shell::{DesktopWallpaper, IDesktopWallpaper, DSD_FORWARD};
+        com_sta();
+        let before = wallpaper_path();
+        let done = if let Some(cmd) = spotlight_next_command() {
+            unsafe { cmd.Invoke(None, None) }.is_ok()
+        } else {
+            unsafe { CoCreateInstance::<_, IDesktopWallpaper>(&DesktopWallpaper, None, CLSCTX_ALL) }
+                .and_then(|wp| unsafe { wp.AdvanceSlideshow(None, DSD_FORWARD) })
+                .is_ok()
+        };
+        if !done {
+            let _ = app.emit("wallpaper-changed", false);
+            return;
+        }
+        for _ in 0..40 {
+            std::thread::sleep(Duration::from_millis(500));
+            if wallpaper_path() != before {
+                break;
+            }
+        }
+        let _ = app.emit("wallpaper-changed", true);
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn wallpaper_image() -> Option<String> {
+    let path = wallpaper_path()?;
     tauri::async_runtime::spawn_blocking(move || crate::apps::image_data_url(&path, 320, false))
         .await
         .ok()

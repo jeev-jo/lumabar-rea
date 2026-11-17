@@ -372,6 +372,21 @@ pub fn set_autostart(enabled: bool) -> Result<bool, String> {
     Ok(get_autostart())
 }
 
+/// Keep "Start with Windows" pointing at this exe, so it still works after
+/// an update or a reinstall to another folder. Dev builds leave it alone.
+pub fn refresh_autostart() {
+    if cfg!(not(debug_assertions)) && get_autostart() {
+        let _ = set_autostart(true);
+    }
+}
+
+/// Called just before an update installs: the installer closes the app
+/// without the usual exit path, so put the taskbar back first.
+#[tauri::command]
+pub fn prepare_update() {
+    crate::taskbar::restore();
+}
+
 // ---------------------------------------------------------------------------
 // Settings window
 // ---------------------------------------------------------------------------

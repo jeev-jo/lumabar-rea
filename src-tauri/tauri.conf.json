@@ -105,8 +105,22 @@
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true,
+    "publisher": "luma-ai-bar",
+    "shortDescription": "A dock for Windows with widgets and AI usage.",
+    "category": "Utility"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM0MUQ3M0RDRjg2OTEwOUEKUldTYUVHbjQzSE1kTkc4a2VNczZIaFp4STBoZEJwSlI1VWIxTHRpNnh4bC9QeU5VcG5IeXUzTnIK",
+      "endpoints": [
+        "https://github.com/jeev-jo/lumabar-rea/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

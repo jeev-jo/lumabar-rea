@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { type Patch, updateSettings, useSettings } from "./settings";
+import { UpdatesRow } from "./Updates";
 import "./settings-page.css";
 
 type Display = { id: string; label: string; primary: boolean };
@@ -185,6 +186,11 @@ export default function SettingsPage() {
             {pinsReset ? "Done" : "Re-import"}
           </button>
         </Row>
+      </section>
+
+      <section>
+        <h2>About</h2>
+        <UpdatesRow Row={Row} />
       </section>
     </main>
   );

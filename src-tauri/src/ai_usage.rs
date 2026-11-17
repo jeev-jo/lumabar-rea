@@ -279,7 +279,23 @@ fn label_for(window: &str) -> String {
         "seven_day" => "Weekly".into(),
         "seven_day_opus" => "Weekly (Opus)".into(),
         "seven_day_sonnet" => "Weekly (Sonnet)".into(),
-        other => other.replace('_', " "),
+        "extra_usage" => "Extra usage".into(),
+        other => {
+            let t = other.replace('_', " ");
+            let mut c = t.chars();
+            c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+        }
+    }
+}
+
+/// Session, then Weekly, then the per-model weekly limits, then anything else
+/// (such as extra usage), so the dock's two meters are always Session and Weekly.
+fn meter_rank(label: &str) -> u8 {
+    match label {
+        "Session" => 0,
+        "Weekly" => 1,
+        l if l.starts_with("Weekly") => 2,
+        _ => 3,
     }
 }
 
@@ -328,8 +344,7 @@ fn claude_code() -> Result<Reading, String> {
     if meters.is_empty() {
         return Err("Anthropic changed how plan limits are reported; this version can't read them.".into());
     }
-    // Shortest window first: it is the one that runs out soonest.
-    meters.sort_by_key(|m| if m.label == "Session" { 0 } else { 1 });
+    meters.sort_by_key(|m| meter_rank(&m.label));
     Ok(Reading {
         provider: "claude_code".into(),
         headline: format!("{:.0}%", meters[0].percent),

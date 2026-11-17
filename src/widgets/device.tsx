@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useSystemStatus, type Status } from "../system";
 import { useTick, type WidgetProps } from "./shared";
 
@@ -23,6 +24,7 @@ const G = {
   watch: "",
   photo: "",
   gear: "",
+  nextPic: "",
 };
 
 const settingsPage = (page: string) => invoke("open_ms_settings", { page }).catch(console.error);
@@ -524,7 +526,12 @@ function useWallpaper(preview?: boolean) {
     const load = () => invoke<string | null>("wallpaper_image").then(setSrc).catch(() => {});
     load();
     const id = setInterval(load, 5 * 60_000);
-    return () => clearInterval(id);
+    // "Next background" (here or in the details) swaps the picture.
+    const off = listen("wallpaper-changed", load);
+    return () => {
+      clearInterval(id);
+      off.then((f) => f());
+    };
   }, [preview]);
   return src;
 }
@@ -540,12 +547,34 @@ export function WallpaperTile({ instance, preview }: WidgetProps) {
 
 export function WallpaperPanel() {
   const src = useWallpaper();
+  // "spotlight" or "slideshow" when Windows can move to the next picture.
+  const [nextKind, setNextKind] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    invoke<string | null>("wallpaper_next_kind").then(setNextKind).catch(() => {});
+    const off = listen("wallpaper-changed", () => setBusy(false));
+    return () => {
+      off.then((f) => f());
+    };
+  }, []);
+  const next = () => {
+    setBusy(true);
+    invoke("wallpaper_next").catch(() => setBusy(false));
+  };
   return (
     <div className="panel">
       <h3>Wallpaper</h3>
-      {src ? <img className="wallpaper-big" src={src} alt="Current wallpaper" /> : <p className="fine">No wallpaper picture is set.</p>}
+      {src ? <img className={`wallpaper-big${busy ? " busy" : ""}`} src={src} alt="Current wallpaper" /> : <p className="fine">No wallpaper picture is set.</p>}
+      {nextKind === "spotlight" && <p className="fine">Windows Spotlight picks a new picture each day.</p>}
       <div className="actions">
-        <span />
+        {nextKind ? (
+          <button className="next-bg" onClick={next} disabled={busy}>
+            <span className="glyph">{G.nextPic}</span>
+            {busy ? "Changing…" : "Next background"}
+          </button>
+        ) : (
+          <span />
+        )}
         <button className="link" onClick={() => settingsPage("personalization-background")}>
           Change wallpaper
         </button>
