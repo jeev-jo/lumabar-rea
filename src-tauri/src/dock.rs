@@ -18,8 +18,10 @@ use windows::Win32::UI::Shell::{
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, RegisterWindowMessageW, SetWindowLongPtrW, SetWindowPos, GWL_EXSTYLE,
     HWND_BOTTOM, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
-    WM_DISPLAYCHANGE, WM_DPICHANGED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WM_DISPLAYCHANGE, WM_DPICHANGED, WM_ENDSESSION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
 };
+
+use crate::{settings, taskbar};
 
 /// Height of the reserved strip, in logical (96-dpi) pixels. Keep in sync with `--strip` in App.css.
 const STRIP_HEIGHT: i32 = 60;
@@ -37,6 +39,8 @@ struct DockState {
     hwnd: isize,
     edge: Edge,
     callback_msg: u32,
+    /// Broadcast by Explorer when it (re)creates the taskbar, e.g. after a crash.
+    taskbar_created_msg: u32,
     registered: bool,
 }
 
@@ -44,6 +48,7 @@ static STATE: Mutex<DockState> = Mutex::new(DockState {
     hwnd: 0,
     edge: Edge::Bottom,
     callback_msg: 0,
+    taskbar_created_msg: 0,
     registered: false,
 });
 
@@ -73,23 +78,31 @@ pub fn init(window: &WebviewWindow) -> tauri::Result<()> {
         );
 
         let callback_msg = RegisterWindowMessageW(w!("LumaAiBar.AppBarCallback"));
+        let taskbar_created_msg = RegisterWindowMessageW(w!("TaskbarCreated"));
         {
             let mut s = STATE.lock().unwrap();
             s.hwnd = hwnd.0 as isize;
             s.callback_msg = callback_msg;
+            s.taskbar_created_msg = taskbar_created_msg;
+            s.edge = settings::get().edge;
         }
-
-        let mut abd = appbar_data(&snapshot());
-        let ok = SHAppBarMessage(ABM_NEW, &mut abd) != 0;
-        STATE.lock().unwrap().registered = ok;
-        if !ok {
-            log("[dock] ABM_NEW failed - the dock will not reserve screen space");
-        }
+        register();
 
         let _ = SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0);
     }
     apply_position();
     Ok(())
+}
+
+/// Register with the shell as an AppBar (again, after an Explorer restart).
+fn register() {
+    let mut s = STATE.lock().unwrap();
+    let mut abd = appbar_data(&s);
+    let ok = unsafe { SHAppBarMessage(ABM_NEW, &mut abd) } != 0;
+    s.registered = ok;
+    if !ok {
+        log("[dock] ABM_NEW failed - the dock will not reserve screen space");
+    }
 }
 
 /// Ask the shell for our strip on the current edge, then move the window into it.
@@ -179,6 +192,17 @@ unsafe extern "system" fn subclass_proc(
         }
         return LRESULT(0);
     }
+    if state.taskbar_created_msg != 0 && msg == state.taskbar_created_msg {
+        // Explorer restarted and forgot every AppBar: register and place again.
+        log("[dock] taskbar recreated - re-registering");
+        STATE.lock().unwrap().registered = false;
+        register();
+        apply_position();
+    }
+    if msg == WM_ENDSESSION && wparam.0 != 0 {
+        // Logoff or shutdown: the process may be ended without an Exit event.
+        taskbar::restore();
+    }
     let result = unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) };
     if msg == WM_DISPLAYCHANGE || msg == WM_DPICHANGED {
         apply_position();
@@ -201,13 +225,9 @@ fn log(msg: &str) {
 }
 
 #[tauri::command]
-pub fn dock_get_edge() -> Edge {
-    snapshot().edge
-}
-
-#[tauri::command]
 pub fn dock_set_edge(app: AppHandle, edge: Edge) -> Result<(), String> {
     STATE.lock().unwrap().edge = edge;
+    settings::update(|s| s.edge = edge);
     let window = app.get_webview_window("main").ok_or("no dock window")?;
     window
         .run_on_main_thread(apply_position)

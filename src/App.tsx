@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import "./App.css";
 
 type Edge = "top" | "bottom";
+type TaskbarMode = "hide" | "leave";
+type Settings = { edge: Edge; taskbar_mode: TaskbarMode };
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -20,8 +23,44 @@ export default function App() {
   const now = useClock();
 
   useEffect(() => {
-    invoke<Edge>("dock_get_edge").then(setEdge).catch(console.error);
+    invoke<Settings>("get_settings")
+      .then((s) => setEdge(s.edge))
+      .catch(console.error);
   }, []);
+
+  function moveTo(target: Edge) {
+    if (target === edge) return;
+    setEdge(target);
+    invoke("dock_set_edge", { edge: target }).catch(console.error);
+  }
+
+  async function onContextMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    const settings = await invoke<Settings>("get_settings");
+    const menu = await Menu.new({
+      items: [
+        await CheckMenuItem.new({
+          text: "Hide the Windows taskbar",
+          checked: settings.taskbar_mode === "hide",
+          action: () =>
+            invoke("set_taskbar_mode", {
+              mode: settings.taskbar_mode === "hide" ? "leave" : "hide",
+            }).catch(console.error),
+        }),
+        await PredefinedMenuItem.new({ item: "Separator" }),
+        await MenuItem.new({
+          text: edge === "bottom" ? "Move dock to top" : "Move dock to bottom",
+          action: () => moveTo(edge === "bottom" ? "top" : "bottom"),
+        }),
+        await PredefinedMenuItem.new({ item: "Separator" }),
+        await MenuItem.new({
+          text: "Quit  (Ctrl+Alt+Shift+Q)",
+          action: () => invoke("quit_app"),
+        }),
+      ],
+    });
+    await menu.popup();
+  }
 
   // Drag the bar towards the other screen edge and let go: it snaps there.
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -39,15 +78,11 @@ export default function App() {
     dragStartY.current = null;
     setDragging(false);
     if (!moved) return;
-    const target: Edge = e.screenY < window.screen.height / 2 ? "top" : "bottom";
-    if (target !== edge) {
-      setEdge(target);
-      invoke("dock_set_edge", { edge: target }).catch(console.error);
-    }
+    moveTo(e.screenY < window.screen.height / 2 ? "top" : "bottom");
   }
 
   return (
-    <div className={`strip edge-${edge}`}>
+    <div className={`strip edge-${edge}`} onContextMenu={onContextMenu}>
       <div
         className={`bar${dragging ? " dragging" : ""}`}
         onPointerDown={onPointerDown}
