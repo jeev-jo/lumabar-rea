@@ -271,7 +271,7 @@ fn claude_code_file() -> Option<PathBuf> {
 
 fn label_for(window: &str) -> String {
     match window {
-        "five_hour" => "5-hour window".into(),
+        "five_hour" => "Session".into(),
         "seven_day" => "Weekly".into(),
         "seven_day_opus" => "Weekly (Opus)".into(),
         "seven_day_sonnet" => "Weekly (Sonnet)".into(),
@@ -325,7 +325,7 @@ fn claude_code() -> Result<Reading, String> {
         return Err("The plan-limits endpoint changed shape; this experimental reader no longer understands it.".into());
     }
     // Shortest window first: it is the one that runs out soonest.
-    meters.sort_by_key(|m| if m.label.starts_with('5') { 0 } else { 1 });
+    meters.sort_by_key(|m| if m.label == "Session" { 0 } else { 1 });
     Ok(Reading {
         provider: "claude_code".into(),
         headline: format!("{:.0}%", meters[0].percent),

@@ -108,7 +108,23 @@ export function AiTile({ instance, preview }: WidgetProps<AiConfig>) {
   const title = r
     ? `${r.caption}: ${r.headline}${stale ? `\nLast reading at ${time(r.fetched_at)} — ${result?.error}` : ""}`
     : result?.error ?? p.name;
-  const meter = r?.meters[0];
+  // Plan limits: one row per window (Session, Weekly…) so both are visible at once.
+  const meters = r?.meters ?? [];
+  if (meters.length > 1 && instance.size !== "s") {
+    return (
+      <div className={`w-ai multi ${instance.size}${stale ? " stale" : ""}`} title={title}>
+        {meters.slice(0, 2).map((m) => (
+          <span key={m.label} className="mrow">
+            <small>{m.label}</small>
+            <MeterBar m={m} thin />
+            <b>{Math.round(m.percent)}%</b>
+          </span>
+        ))}
+        {stale && <span className="glyph warn">{""}</span>}
+      </div>
+    );
+  }
+  const meter = meters[0];
 
   return (
     <div className={`w-ai ${instance.size}${stale ? " stale" : ""}`} title={title}>
