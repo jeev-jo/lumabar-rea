@@ -21,7 +21,6 @@ const G = {
   pause: "",
   prev: "",
   next: "",
-  bolt: "",
 };
 
 const flyout = (which: string) => invoke("open_flyout", { which }).catch(console.error);
@@ -41,9 +40,20 @@ export function useSystemStatus() {
 export function StartButton() {
   return (
     <button className="sys start" title="Start" onClick={() => flyout("start")}>
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
-        <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" strokeWidth="2" />
-        <circle cx="12" cy="12" r="3.2" fill="currentColor" />
+      {/* The Windows logo, as on the Windows 11 Start button. */}
+      <svg viewBox="0 0 20 20" width="19" height="19" aria-hidden>
+        <defs>
+          <linearGradient id="start-blue" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#28a8ea" />
+            <stop offset="1" stopColor="#0f6cbd" />
+          </linearGradient>
+        </defs>
+        <g fill="url(#start-blue)">
+          <rect x="0.5" y="0.5" width="9" height="9" rx="0.8" />
+          <rect x="10.5" y="0.5" width="9" height="9" rx="0.8" />
+          <rect x="0.5" y="10.5" width="9" height="9" rx="0.8" />
+          <rect x="10.5" y="10.5" width="9" height="9" rx="0.8" />
+        </g>
       </svg>
     </button>
   );
@@ -78,13 +88,21 @@ function MediaControls({ media }: { media: NonNullable<Status["media"]> }) {
 
 function BatteryIcon({ b }: { b: NonNullable<Status["battery"]> }) {
   const low = b.percent <= 15 && !b.charging;
+  // Inner cell is 17 units wide; keep a sliver visible so "almost empty" still shows.
+  const fill = Math.max(1.2, (17 * Math.min(100, b.percent)) / 100);
   return (
-    <span className={`battery${low ? " low" : ""}`}>
-      <span className="cell">
-        <span className="fill" style={{ width: `${b.percent}%` }} />
-      </span>
-      {b.charging && <span className="glyph bolt">{G.bolt}</span>}
-    </span>
+    <svg
+      className={`battery${low ? " low" : ""}${b.charging ? " charging" : ""}`}
+      viewBox="0 0 26 14"
+      width="26"
+      height="14"
+      aria-hidden
+    >
+      <rect className="shell" x="1" y="1" width="21" height="12" rx="3.2" />
+      <rect className="nub" x="23" y="4.5" width="2" height="5" rx="1" />
+      <rect className="level" x="3" y="3" width={fill} height="8" rx="1.6" />
+      {b.charging && <path className="bolt" d="M13.4 1.9 L8.2 7.7 H11.4 L10 12.1 L15.2 6.3 H12 Z" />}
+    </svg>
   );
 }
 

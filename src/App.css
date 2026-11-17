@@ -205,7 +205,6 @@ body,
 .sys.start {
   width: var(--btn);
   padding: 0;
-  color: var(--accent);
 }
 
 .system {
@@ -261,47 +260,39 @@ body,
   opacity: 0.65;
 }
 
+/* Battery drawn as one SVG; the charging bolt sits inside the cell. */
 .battery {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.battery .cell {
-  position: relative;
-  width: 20px;
-  height: 10px;
-  box-sizing: border-box;
-  border: 1.5px solid currentColor;
-  border-radius: 3px;
-  padding: 1px;
-}
-
-/* the terminal nub */
-.battery .cell::after {
-  content: "";
-  position: absolute;
-  right: -4px;
-  top: 2px;
-  width: 2px;
-  height: 3px;
-  border-radius: 0 1px 1px 0;
-  background: currentColor;
-}
-
-.battery .fill {
   display: block;
-  height: 100%;
-  border-radius: 1px;
-  background: currentColor;
+  overflow: visible;
+}
+
+.battery .shell {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  opacity: 0.9;
+}
+
+.battery .nub,
+.battery .level {
+  fill: currentColor;
+}
+
+.battery.charging .level {
+  opacity: 0.45;
+}
+
+/* Outlined in the bar's colour so the bolt reads on top of any charge level. */
+.battery .bolt {
+  fill: currentColor;
+  stroke: var(--panel-bg);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 
 .battery.low {
   color: #ff6b5e;
-}
-
-.battery .bolt {
-  font-size: 11px;
 }
 
 .sys.clock {
