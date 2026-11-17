@@ -103,8 +103,23 @@ export default function SettingsPage() {
             onChange={(size) => set({ size })}
           />
         </Row>
-        <Row title="Style" hint="Glass lets the desktop show through, blurred.">
-          <Segmented value={settings.style} options={[["glass", "Glass"], ["solid", "Solid"]]} onChange={(style) => set({ style })} />
+        <Row
+          title="Style"
+          hint={
+            settings.style === "liquid"
+              ? "Liquid glass bends what moves behind the dock. While it's on, the dock doesn't appear in screenshots or screen sharing."
+              : "Glass lets the desktop show through, blurred."
+          }
+        >
+          <Segmented
+            value={settings.style}
+            options={[
+              ["liquid", "Liquid glass"],
+              ["glass", "Glass"],
+              ["solid", "Solid"],
+            ]}
+            onChange={(style) => set({ style })}
+          />
         </Row>
         <Row title="Theme" hint="System follows Windows' light or dark mode.">
           <Segmented

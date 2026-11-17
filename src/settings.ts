@@ -8,7 +8,7 @@ export type Edge = "top" | "bottom";
 export type TaskbarMode = "hide" | "complete" | "leave";
 export type Size = "small" | "medium" | "large";
 export type Theme = "system" | "dark" | "light";
-export type Style = "glass" | "solid";
+export type Style = "liquid" | "glass" | "solid";
 
 export type Settings = {
   edge: Edge;

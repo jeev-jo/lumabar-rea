@@ -143,3 +143,25 @@
     --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.06);
   }
 }
+
+/* Liquid glass uses the glass look for everything except the bar, whose
+   backdrop is drawn by the refraction shader. */
+:root[data-style="liquid"] {
+  --panel-bg: rgba(20, 22, 28, 0.52);
+  --page-bg: rgba(16, 18, 24, 0.28);
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.2);
+  --hover: rgba(255, 255, 255, 0.12);
+  --active: rgba(255, 255, 255, 0.18);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+:root[data-style="liquid"][data-theme="light"] {
+  --panel-bg: rgba(250, 250, 252, 0.6);
+  --page-bg: rgba(248, 248, 250, 0.36);
+  --card-bg: rgba(255, 255, 255, 0.55);
+  --border: rgba(255, 255, 255, 0.6);
+  --hover: rgba(0, 0, 0, 0.06);
+  --active: rgba(0, 0, 0, 0.1);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+}

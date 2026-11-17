@@ -8,6 +8,7 @@ import { DockWidgets } from "./widgets/DockWidgets";
 import { sideOf } from "./widgets/shared";
 import { useEditMode } from "./widgets/arrange";
 import "./widgets/widgets.css";
+import { LiquidGlass } from "./liquid";
 import "./App.css";
 
 function useClock() {
@@ -127,6 +128,7 @@ export default function App() {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
+        {settings?.style === "liquid" && <LiquidGlass radius={8} />}
         {(leftWidgets.length > 0 || editing) && (
           <>
             <DockWidgets widgets={leftWidgets} all={allWidgets} side="left" edit={editing} />

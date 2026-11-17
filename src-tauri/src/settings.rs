@@ -68,6 +68,8 @@ pub enum Style {
     Solid,
     /// Frosted glass: Windows blurs what is behind each surface.
     Glass,
+    /// Liquid glass: the dock bends and refracts what is behind it (see glass.rs).
+    Liquid,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -156,14 +158,17 @@ pub fn apply_taskbar_mode(mode: TaskbarMode) {
 /// Settings and the picker are ordinary windows and get Mica.
 pub fn apply_style(app: &AppHandle, style: Style) {
     use tauri::window::{Effect, EffectsBuilder};
-    let glass = style == Style::Glass;
+    let glass = style != Style::Solid;
     for label in ["main", "preview", "popover"] {
         let Some(w) = app.get_webview_window(label) else { continue };
         let Ok(h) = w.hwnd() else { continue };
-        if !crate::backdrop::set_glass(windows::Win32::Foundation::HWND(h.0 as _), glass) && glass {
+        // In liquid style the dock draws its own refracted backdrop instead.
+        let frosted = glass && !(label == "main" && style == Style::Liquid);
+        if !crate::backdrop::set_glass(windows::Win32::Foundation::HWND(h.0 as _), frosted) && frosted {
             eprintln!("[style] {label}: frosted backdrop unavailable on this Windows");
         }
     }
+    crate::glass::set_excluded(app, style == Style::Liquid);
     for label in ["settings", "widgets"] {
         let Some(w) = app.get_webview_window(label) else { continue };
         let result = if glass {
