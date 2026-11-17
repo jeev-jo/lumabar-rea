@@ -1529,3 +1529,262 @@ html.popover-page #root {
   opacity: 0.55;
   transition: opacity 200ms;
 }
+
+/* ---- system gadgets ---------------------------------------------------- */
+
+.w-top,
+.w-storage,
+.w-bin,
+.w-mic,
+.w-progress {
+  justify-content: center;
+}
+
+.w-top img,
+.w-top-panel img {
+  flex: none;
+}
+
+.w-top .name,
+.w-top-panel .name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.w-top.m,
+.w-storage.m,
+.w-bin.m,
+.w-mic.m,
+.w-progress.m {
+  justify-content: flex-start;
+}
+
+.w-top.l,
+.w-progress.l {
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 1px !important;
+}
+
+.w-top .row,
+.w-progress .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.25;
+}
+
+.w-top .row small,
+.w-progress .row small {
+  width: 34px;
+  flex: none;
+}
+
+.w-top .row img {
+  width: 14px;
+  height: 14px;
+}
+
+.w-top .row b,
+.w-progress .row b {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.w-progress .row .meter {
+  flex: 1;
+}
+
+.w-storage .text,
+.w-bin .text,
+.w-mic .text,
+.w-progress .text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.w-storage .text b,
+.w-bin .text b,
+.w-mic .text b,
+.w-progress .text b {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ring {
+  flex: none;
+}
+
+.ring circle {
+  fill: none;
+  stroke-width: 3;
+}
+
+.ring .track {
+  stroke: var(--divider);
+}
+
+.ring .fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+
+.ring.warning .fill {
+  stroke: var(--warning);
+}
+
+.ring.critical .fill {
+  stroke: #ff6b5e;
+}
+
+.w-bin .glyph {
+  font-size: 15px;
+  opacity: 0.7;
+}
+
+.w-bin.full .glyph {
+  opacity: 1;
+}
+
+.w-mic .toggle {
+  border: 0;
+  padding: 4px;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font-size: 15px;
+}
+
+.w-mic .toggle:hover {
+  background: var(--hover);
+}
+
+.w-mic.muted .toggle {
+  color: #ff8a80;
+}
+
+.w-mic.none {
+  font-size: 11px;
+}
+
+/* One-click tiles (theme, show desktop): the whole tile is the button. */
+.w-action {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+
+.w-action .glyph {
+  font-size: 16px;
+}
+
+/* details views */
+.seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: var(--hover);
+}
+
+.panel .seg button {
+  flex: 1;
+  border: 0;
+  background: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.panel .seg button.on {
+  background: var(--active);
+  font-weight: 600;
+}
+
+.panel .seg.big button {
+  padding: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.top-list {
+  margin: 0 !important;
+}
+
+.top-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.top-list li b {
+  font-variant-numeric: tabular-nums;
+}
+
+.top-list small {
+  opacity: 0.6;
+}
+
+.w-storage-panel .drive {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding: 8px !important;
+  border: 0 !important;
+  text-align: left;
+  background: transparent !important;
+  border-radius: 8px !important;
+}
+
+.w-storage-panel .drive:hover {
+  background: var(--hover) !important;
+}
+
+.w-storage-panel .drive .glyph {
+  font-size: 20px;
+  opacity: 0.8;
+}
+
+.w-storage-panel .info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.w-storage-panel .top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.w-storage-panel .top small {
+  opacity: 0.65;
+  white-space: nowrap;
+}

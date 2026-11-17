@@ -2,6 +2,7 @@ mod ai_usage;
 mod apps;
 mod backdrop;
 mod dock;
+mod gadgets;
 mod glass;
 mod preview;
 mod secrets;
@@ -199,6 +200,19 @@ pub fn run() {
             settings::open_settings,
             apps::apps_snapshot,
             apps::app_icon,
+            gadgets::top_apps,
+            gadgets::drives,
+            gadgets::open_drive,
+            gadgets::recycle_bin,
+            gadgets::recycle_bin_empty,
+            gadgets::recycle_bin_open,
+            gadgets::mic_status,
+            gadgets::mic_set,
+            gadgets::mic_toggle_mute,
+            gadgets::theme_get,
+            gadgets::theme_set,
+            gadgets::show_desktop,
+            gadgets::open_task_manager,
             apps::app_activate,
             apps::app_launch,
             apps::window_focus,

@@ -295,7 +295,7 @@ fn key(vk: VIRTUAL_KEY, up: bool) -> INPUT {
 }
 
 /// Press `keys` together, then release them in reverse order.
-fn chord(keys: &[VIRTUAL_KEY]) {
+pub(crate) fn chord(keys: &[VIRTUAL_KEY]) {
     let mut inputs: Vec<INPUT> = keys.iter().map(|&k| key(k, false)).collect();
     inputs.extend(keys.iter().rev().map(|&k| key(k, true)));
     unsafe { SendInput(&inputs, std::mem::size_of::<INPUT>() as i32) };
@@ -430,6 +430,9 @@ pub fn open_ms_settings(page: String) -> Result<(), String> {
         "sound",
         "batterysaver",
         "personalization-background",
+        "storagesense",
+        "colors",
+        "sound-devices",
     ];
     if !ALLOWED.contains(&page.as_str()) {
         return Err(format!("not an allowed settings page: {page}"));

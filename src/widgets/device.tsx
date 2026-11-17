@@ -125,7 +125,7 @@ function volumeGlyph(level: number, muted: boolean) {
   return G.vol[level < 34 ? 1 : level < 67 ? 2 : 3];
 }
 
-function VolumeSlider({ level, onChange }: { level: number; onChange: (v: number) => void }) {
+export function VolumeSlider({ level, onChange, label = "Volume" }: { level: number; onChange: (v: number) => void; label?: string }) {
   return (
     <input
       className="slider"
@@ -138,7 +138,7 @@ function VolumeSlider({ level, onChange }: { level: number; onChange: (v: number
       onClick={stop}
       onPointerDown={stop}
       onMouseDown={stop}
-      aria-label="Volume"
+      aria-label={label}
     />
   );
 }
@@ -465,7 +465,7 @@ export function ScreenTimeTile({ instance, preview }: WidgetProps) {
   );
 }
 
-function AppIcon({ exe }: { exe: string }) {
+export function AppIcon({ exe }: { exe: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     invoke<string | null>("app_icon", { path: exe }).then(setSrc).catch(() => {});
