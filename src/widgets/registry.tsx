@@ -7,6 +7,20 @@ import { NotesPanel, NotesTile } from "./notes";
 import { PomodoroPanel, PomodoroTile } from "./pomodoro";
 import { WorldClockPanel, WorldClockTile } from "./worldclock";
 import { AiPanel, AiTile, aiWidget } from "./ai";
+import {
+  BatteryPanel,
+  BatteryTile,
+  NowPlayingPanel,
+  NowPlayingTile,
+  ScreenTimePanel,
+  ScreenTimeTile,
+  SpeakersPanel,
+  SpeakersTile,
+  TogglesPanel,
+  TogglesTile,
+  WallpaperPanel,
+  WallpaperTile,
+} from "./device";
 
 /**
  * A widget = this manifest + a Tile (in the dock) + a Panel (the expanded view
@@ -15,7 +29,7 @@ import { AiPanel, AiTile, aiWidget } from "./ai";
 export type WidgetKind = {
   kind: string;
   name: string;
-  group: "AI" | "Clocks" | "Productivity" | "System" | "Weather";
+  group: "AI" | "Clocks" | "Media" | "Productivity" | "System" | "Weather";
   description: string;
   sizes: WidgetSize[];
   defaultSize: WidgetSize;
@@ -30,6 +44,72 @@ export type WidgetKind = {
 };
 
 export const WIDGETS: WidgetKind[] = [
+  {
+    kind: "battery",
+    name: "Battery",
+    group: "System",
+    description: "Charge level, charging, and time left.",
+    sizes: ["s", "m"],
+    defaultSize: "s",
+    panel: { width: 300, height: 220 },
+    Tile: BatteryTile,
+    Panel: BatteryPanel,
+  },
+  {
+    kind: "toggles",
+    name: "Quick toggles",
+    group: "System",
+    description: "Switch Wi-Fi and Bluetooth on or off.",
+    sizes: ["m", "l"],
+    defaultSize: "m",
+    panel: { width: 300, height: 220 },
+    Tile: TogglesTile,
+    Panel: TogglesPanel,
+  },
+  {
+    kind: "speakers",
+    name: "Speakers",
+    group: "Media",
+    description: "Your sound output with a volume slider.",
+    sizes: ["m", "l"],
+    defaultSize: "l",
+    panel: { width: 300, height: 220 },
+    Tile: SpeakersTile,
+    Panel: SpeakersPanel,
+  },
+  {
+    kind: "nowplaying",
+    name: "Now playing",
+    group: "Media",
+    description: "Album art, track and play/pause for whatever is playing.",
+    sizes: ["s", "m", "l"],
+    defaultSize: "s",
+    panel: { width: 260, height: 330 },
+    Tile: NowPlayingTile,
+    Panel: NowPlayingPanel,
+  },
+  {
+    kind: "wallpaper",
+    name: "Wallpaper",
+    group: "Media",
+    description: "Your desktop picture; click to change it.",
+    sizes: ["s", "m"],
+    defaultSize: "s",
+    panel: { width: 340, height: 300 },
+    Tile: WallpaperTile,
+    Panel: WallpaperPanel,
+  },
+  {
+    kind: "screentime",
+    name: "Screen time",
+    group: "Productivity",
+    description: "Today's total, hour by hour and per app. Kept on this PC.",
+    sizes: ["m", "l"],
+    defaultSize: "l",
+    panel: { width: 340, height: 460 },
+    Tile: ScreenTimeTile,
+    Panel: ScreenTimePanel,
+  },
   {
     kind: "claude",
     name: "Claude",
@@ -150,7 +230,7 @@ export const WIDGETS: WidgetKind[] = [
   },
 ];
 
-export const GROUPS = ["AI", "Clocks", "Productivity", "System", "Weather"] as const;
+export const GROUPS = ["AI", "Clocks", "Media", "Productivity", "System", "Weather"] as const;
 
 export const byKind = (kind: string) => WIDGETS.find((w) => w.kind === kind);
 

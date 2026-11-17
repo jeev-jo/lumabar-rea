@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-type Status = {
-  volume: { level: number; muted: boolean } | null;
+export type Status = {
+  volume: { level: number; muted: boolean; device: string } | null;
   network: "wifi" | "ethernet" | "other" | "offline";
-  battery: { percent: number; charging: boolean } | null;
-  media: { title: string; artist: string; playing: boolean } | null;
+  battery: { percent: number; charging: boolean; minutes_left: number | null } | null;
+  media: { title: string; artist: string; playing: boolean; art: string | null } | null;
+  wifi: boolean | null;
+  bluetooth: boolean | null;
 };
 
 // Glyphs from Segoe Fluent Icons, which ships with Windows 11.

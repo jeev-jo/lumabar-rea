@@ -100,7 +100,7 @@ export function DockWidgets({
         return (
           <button
             key={w.id}
-            className={`widget size-${w.size}${over === w.id ? " drop-before" : ""}`}
+            className={`widget size-${w.size} kind-${w.kind}${over === w.id ? " drop-before" : ""}`}
             draggable={edit}
             title={edit ? `${kind.name} — drag to move, across the apps to switch sides` : undefined}
             onMouseEnter={(e) => !edit && glanceEnter(e.currentTarget, w, kind.panel)}

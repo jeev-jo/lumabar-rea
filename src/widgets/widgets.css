@@ -890,3 +890,465 @@ html.popover-page #root {
 .w-ai-panel .refresh {
   font-weight: 600;
 }
+
+/* ---- device widgets ------------------------------------------------------ */
+
+.glyph {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+}
+
+/* Battery: a solid accent tile with the charge level in big type. */
+.widget.kind-battery {
+  background: linear-gradient(160deg, #3d9bff, #0a66d8);
+  color: #fff;
+  justify-content: center;
+}
+
+.widget.kind-battery:hover {
+  background: linear-gradient(160deg, #56a9ff, #1572e6);
+}
+
+.w-battery {
+  justify-content: center;
+  gap: 3px !important;
+}
+
+.w-battery b {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.w-battery .glyph {
+  font-size: 13px;
+}
+
+.w-battery.m {
+  justify-content: flex-start;
+}
+
+.w-battery small {
+  font-size: 11px;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.w-battery.low b {
+  color: #ffd2cc;
+}
+
+.w-battery.none {
+  font-size: 11px;
+}
+
+/* Speakers: name and level above a slider. */
+.w-speakers {
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 3px !important;
+}
+
+.w-speakers .top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.w-speakers .top b {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.w-speakers .top small {
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+.w-speakers .mute {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  margin: 0;
+  border-radius: 6px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--divider) var(--fill));
+  cursor: default;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.panel .slider {
+  height: 14px;
+  margin: 10px 0 4px;
+}
+
+/* Quick toggles: two pills, the main part switches, the arrow opens settings. */
+.w-toggles {
+  gap: 6px !important;
+  justify-content: center;
+}
+
+.pill-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  border-radius: 15px;
+  border: 1px solid var(--border);
+  background: var(--hover);
+  overflow: hidden;
+}
+
+.pill-toggle button {
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: default;
+}
+
+.pill-toggle .main {
+  width: 32px;
+}
+
+.pill-toggle .more {
+  width: 22px;
+  font-size: 9px;
+  opacity: 0.7;
+  border-left: 1px solid var(--border);
+}
+
+.pill-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.pill-toggle button:hover {
+  background: rgba(127, 127, 127, 0.18);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.toggle-row > .glyph {
+  font-size: 16px;
+  width: 20px;
+}
+
+.toggle-row .name {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle-row .name small {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+/* Now playing: round album art with play/pause on top. */
+.w-now {
+  gap: 8px !important;
+}
+
+.w-now.s {
+  justify-content: center;
+}
+
+.art-wrap {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 30px;
+}
+
+.art {
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.art.empty {
+  display: grid;
+  place-items: center;
+  background: var(--fallback);
+  font-size: 14px;
+}
+
+.w-now.playing .art {
+  animation: spin 8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.art-wrap .overlay {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.widget:hover .art-wrap .overlay,
+.w-now:not(.playing) .art-wrap .overlay {
+  opacity: 1;
+}
+
+.w-now .text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.w-now .text b,
+.w-now .text small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.w-now .text b {
+  font-size: 12px;
+}
+
+.w-now .text small {
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.w-now .skip {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 12px;
+  padding: 4px;
+}
+
+.w-now.idle small {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.now-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.now-panel .art {
+  border-radius: 14px;
+  margin: 4px 0 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.now-panel .art.empty {
+  font-size: 40px;
+}
+
+.now-panel .title {
+  font-size: 15px;
+}
+
+.now-panel .artist {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.transport {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.transport button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  font-size: 13px;
+}
+
+.transport .primary {
+  width: 46px;
+  height: 46px;
+  font-size: 16px;
+}
+
+/* Screen time: watch glyph, today's total, recent hours as bars. */
+.w-screentime {
+  gap: 8px !important;
+}
+
+.w-screentime .watch {
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.w-screentime .text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.w-screentime .text small {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.w-screentime .text b {
+  font-size: 15px;
+}
+
+.w-screentime .hour-bars {
+  flex: 1;
+  min-width: 30px;
+  align-self: flex-end;
+  padding-bottom: 6px;
+}
+
+.hour-bars {
+  position: relative;
+  display: block;
+}
+
+.hour-bars svg {
+  display: block;
+}
+
+.hour-bars .hb-bar {
+  fill: var(--series-1);
+}
+
+.hour-bars .hb-bar.on {
+  fill: var(--accent);
+}
+
+.bar-tip {
+  position: absolute;
+  bottom: 100%;
+  transform: translate(-50%, -4px);
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.hour-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  opacity: 0.55;
+  margin: 2px 0 10px;
+}
+
+.app-usage {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-usage li {
+  display: grid;
+  grid-template-columns: 18px 1fr 70px 52px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.app-usage .name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-usage b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Wallpaper: the picture fills the tile. */
+.widget.kind-wallpaper {
+  padding: 0;
+  overflow: hidden;
+}
+
+.w-wallpaper {
+  height: 100%;
+  justify-content: center;
+}
+
+.w-wallpaper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 11px;
+}
+
+.wallpaper-big {
+  width: 100%;
+  border-radius: 10px;
+  display: block;
+}
+
+.big-number {
+  font-size: 34px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.big-number span {
+  font-size: 18px;
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
+/* Panel buttons reset their font; icon buttons must keep the icon font. */
+.panel button.glyph,
+.pill-toggle button.glyph,
+.transport button.glyph {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets" !important;
+}

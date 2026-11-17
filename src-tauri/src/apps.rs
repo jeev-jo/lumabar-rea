@@ -158,7 +158,7 @@ unsafe extern "system" fn collect_hwnd(hwnd: HWND, lparam: LPARAM) -> BOOL {
     BOOL(1)
 }
 
-fn window_pid(hwnd: HWND) -> u32 {
+pub(crate) fn window_pid(hwnd: HWND) -> u32 {
     let mut pid = 0u32;
     unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
     pid
@@ -182,7 +182,7 @@ fn window_title(hwnd: HWND) -> String {
     }
 }
 
-fn process_exe(pid: u32) -> Option<String> {
+pub(crate) fn process_exe(pid: u32) -> Option<String> {
     unsafe {
         let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
         let mut buf = [0u16; 1024];
@@ -410,7 +410,7 @@ fn file_description(path: &str) -> Option<String> {
     }
 }
 
-fn app_name(key: &str, exe: &str, title: &str) -> String {
+pub(crate) fn app_name(key: &str, exe: &str, title: &str) -> String {
     if key.starts_with("store:") {
         return title.to_string();
     }
@@ -429,15 +429,19 @@ fn app_name(key: &str, exe: &str, title: &str) -> String {
 
 /// Render the shell's icon for a file as a PNG data URL.
 fn icon_data_url(path: &str) -> Option<String> {
+    image_data_url(path, ICON_SIZE, true)
+}
+
+/// The shell's picture of a file as a PNG data URL: its icon, or (for images)
+/// a thumbnail of the picture itself.
+pub(crate) fn image_data_url(path: &str, size: i32, icon_only: bool) -> Option<String> {
     com_init();
     unsafe {
         let factory: IShellItemImageFactory =
             SHCreateItemFromParsingName(&HSTRING::from(path), None).ok()?;
+        let flags = if icon_only { SIIGBF_ICONONLY.0 | SIIGBF_BIGGERSIZEOK.0 } else { SIIGBF_BIGGERSIZEOK.0 };
         let hbmp = factory
-            .GetImage(
-                SIZE { cx: ICON_SIZE, cy: ICON_SIZE },
-                SIIGBF(SIIGBF_ICONONLY.0 | SIIGBF_BIGGERSIZEOK.0),
-            )
+            .GetImage(SIZE { cx: size, cy: size }, SIIGBF(flags))
             .ok()?;
         let hgdi = HGDIOBJ(hbmp.0);
         let mut bm = BITMAP::default();

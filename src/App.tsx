@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { AppButton, useApps } from "./apps";
-import { Clock, StartButton, SystemStrip, useSystemStatus } from "./system";
+import { Clock, StartButton } from "./system";
 import { type Edge, updateSettings, useSettings } from "./settings";
 import { DockWidgets } from "./widgets/DockWidgets";
 import { sideOf } from "./widgets/shared";
@@ -43,7 +43,6 @@ export default function App() {
   const draggedPin = useRef<string | null>(null);
   const now = useClock();
   const apps = useApps();
-  const status = useSystemStatus();
 
   function dropOnPin(targetKey: string) {
     const from = draggedPin.current;
@@ -153,7 +152,6 @@ export default function App() {
           </>
         )}
         <span className="divider" />
-        <SystemStrip status={status} />
         <Clock now={now} />
       </div>
     </div>

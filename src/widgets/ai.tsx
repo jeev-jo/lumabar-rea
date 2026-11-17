@@ -127,11 +127,11 @@ export function ServiceIcon({ service, label, size = 20 }: { service: string; la
 function useUsage(id: string, provider: Provider, preview?: boolean) {
   const [result, save] = useWidgetData<UsageResult | null>(id, preview ? DEMO[provider] : null, preview);
   const [busy, setBusy] = useState(false);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (manual = false) => {
     if (preview) return;
     setBusy(true);
     try {
-      save(await invoke<UsageResult>("ai_usage_fetch", { id, provider }));
+      save(await invoke<UsageResult>("ai_usage_fetch", { id, provider, manual }));
     } finally {
       setBusy(false);
     }
@@ -251,7 +251,11 @@ function Panel({ instance, provider, chooser }: WidgetProps<AiConfig> & { provid
         <ServiceIcon service={svc.icon} label={svc.short} size={28} />
         <div>
           <h3>{svc.name}</h3>
-          {r && <span className="fine">Updated {time(r.fetched_at)} · refreshes every minute</span>}
+          {r && (
+            <span className="fine">
+              Updated {time(r.fetched_at)} · checks every {provider === "claude_code" ? "5 minutes" : "minute"}
+            </span>
+          )}
         </div>
       </div>
 
@@ -271,7 +275,7 @@ function Panel({ instance, provider, chooser }: WidgetProps<AiConfig> & { provid
           {found === false && " No Claude Code sign-in was found — sign in to Claude Code first."}
         </p>
       ) : (
-        <KeyForm key={`${instance.id}-${provider}`} id={instance.id} svc={svc} onSaved={refresh} />
+        <KeyForm key={`${instance.id}-${provider}`} id={instance.id} svc={svc} onSaved={() => refresh(true)} />
       )}
 
       {result?.error && (
@@ -312,7 +316,7 @@ function Panel({ instance, provider, chooser }: WidgetProps<AiConfig> & { provid
         <span className="fine">
           {r?.data_as_of ? `Data up to ${new Date(r.data_as_of).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}` : ""}
         </span>
-        <button className="refresh" disabled={busy} onClick={refresh}>
+        <button className="refresh" disabled={busy} onClick={() => refresh(true)}>
           {busy ? "Checking…" : "Refresh"}
         </button>
       </div>

@@ -346,8 +346,26 @@ fn claude_code() -> Result<Reading, String> {
 // ---------------------------------------------------------------------------
 
 const RATE_LIMITED: &str = "~rate-limited~";
-const MIN_GAP: std::time::Duration = std::time::Duration::from_secs(55);
-const MAX_BACKOFF: u64 = 15 * 60;
+/// How often each source is actually asked. Claude's plan-limits endpoint has a
+/// tight per-account limit that Claude Code's own background checks also use
+/// (it can demand waits of 10+ minutes), so it is asked every 5 minutes; a
+/// manual Refresh may ask once a minute. Spend and balance APIs: once a minute.
+fn min_gap(source: &str, manual: bool) -> std::time::Duration {
+    let secs = if manual {
+        55
+    } else if source == "claude_code" {
+        5 * 60 - 5
+    } else {
+        55
+    };
+    std::time::Duration::from_secs(secs)
+}
+
+/// First wait after a slow-down reply with no usable Retry-After (Claude: 5 min).
+fn first_backoff(source: &str) -> u64 {
+    if source == "claude_code" { 5 * 60 } else { 60 }
+}
+const MAX_BACKOFF: u64 = 30 * 60;
 
 #[derive(Default)]
 struct Pace {
@@ -365,11 +383,11 @@ fn with_pace<R>(source: &str, f: impl FnOnce(&mut Pace) -> R) -> R {
 
 /// Run `fetch` unless this source was read under a minute ago (reuse that) or
 /// is backing off after a slow-down reply (then say when it tries again).
-fn throttled(source: &str, fetch: impl FnOnce() -> Result<Reading, String>) -> Result<Reading, String> {
+fn throttled(source: &str, manual: bool, fetch: impl FnOnce() -> Result<Reading, String>) -> Result<Reading, String> {
     let now = std::time::Instant::now();
     let early = with_pace(source, |p| {
         if let Some((at, r)) = &p.last_ok {
-            if now.duration_since(*at) < MIN_GAP {
+            if now.duration_since(*at) < min_gap(source, manual) {
                 return Some(Ok(r.clone()));
             }
         }
@@ -402,7 +420,9 @@ fn throttled(source: &str, fetch: impl FnOnce() -> Result<Reading, String>) -> R
             let wait = with_pace(source, |p| {
                 p.strikes += 1;
                 // Honour Retry-After; otherwise 1, 2, 4, 8 ... minutes, at most 15.
-                let wait = if asked > 0 { asked } else { 60u64 << (p.strikes - 1).min(4) };
+                // Some accounts get "retry-after: 0" on every refusal; treat it as unknown.
+                let wait = if asked > 0 { asked } else { first_backoff(source) << (p.strikes - 1).min(4) };
+                eprintln!("[ai] {source}: slow-down reply, retry-after={asked}s, waiting {wait}s");
                 let wait = wait.min(MAX_BACKOFF);
                 p.backoff_until = Some(std::time::Instant::now() + std::time::Duration::from_secs(wait));
                 wait
@@ -521,13 +541,14 @@ pub fn ai_claude_code_found() -> bool {
 
 /// Fetch a fresh reading; on failure return the last good one marked stale.
 #[tauri::command]
-pub async fn ai_usage_fetch(id: String, provider: String) -> UsageResult {
+pub async fn ai_usage_fetch(id: String, provider: String, manual: Option<bool>) -> UsageResult {
+    let manual = manual.unwrap_or(false);
     // Claude plan limits belong to the account, not the widget: every Claude
     // widget shares one request. Key-based services are per widget (per key).
     let source = if provider == "claude_code" { provider.clone() } else { id.clone() };
     let id2 = id.clone();
     let attempt = tauri::async_runtime::spawn_blocking(move || -> Result<Reading, String> {
-        throttled(&source, || {
+        throttled(&source, manual, || {
             if provider == "claude_code" {
                 return claude_code();
             }

@@ -4,6 +4,7 @@ mod backdrop;
 mod dock;
 mod preview;
 mod secrets;
+mod screentime;
 mod settings;
 mod stats;
 mod weather;
@@ -113,6 +114,7 @@ pub fn run() {
             apps::init(app.handle(), &window)?;
             preview::init(app.handle())?;
             system::init(app.handle());
+            screentime::init();
             widgets::init(app.handle());
 
             // Dev-only test hook: LUMA_DEBUG_SETTINGS=1 opens the settings window at start.
@@ -209,6 +211,11 @@ pub fn run() {
             system::volume_step,
             system::volume_toggle_mute,
             system::media_control,
+            system::volume_set,
+            system::radio_set,
+            system::open_ms_settings,
+            system::wallpaper_image,
+            screentime::screen_time_today,
             stats::stats_history,
             weather::weather_get,
             weather::place_search,

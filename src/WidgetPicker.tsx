@@ -14,6 +14,7 @@ const GLYPH: Record<Category, string> = {
   all: "",
   AI: "",
   Clocks: "",
+  Media: "",
   Productivity: "",
   System: "",
   Weather: "",
@@ -23,6 +24,7 @@ const TITLE: Record<Category, string> = {
   all: "All widgets",
   AI: "AI",
   Clocks: "Clocks",
+  Media: "Media",
   Productivity: "Productivity",
   System: "System",
   Weather: "Weather",
@@ -33,7 +35,7 @@ function Tile({ instance, preview }: { instance: WidgetInstance; preview?: boole
   if (!k) return null;
   const T = k.Tile;
   return (
-    <div className={`widget size-${instance.size}`}>
+    <div className={`widget size-${instance.size} kind-${instance.kind}`}>
       <T instance={instance} preview={preview} />
     </div>
   );
