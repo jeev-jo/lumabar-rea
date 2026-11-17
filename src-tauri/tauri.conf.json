@@ -45,6 +45,18 @@
         "maximizable": false,
         "minimizable": false,
         "url": "index.html?view=preview"
+      },
+      {
+        "label": "settings",
+        "title": "luma-ai-bar settings",
+        "url": "index.html?view=settings",
+        "width": 560,
+        "height": 660,
+        "minWidth": 460,
+        "minHeight": 480,
+        "center": true,
+        "visible": false,
+        "resizable": true
       }
     ],
     "security": {

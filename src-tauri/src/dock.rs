@@ -4,12 +4,9 @@
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, WebviewWindow};
 use windows::core::w;
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
-use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTOPRIMARY,
-};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::Shell::{
     DefSubclassProc, SHAppBarMessage, SetWindowSubclass, ABE_BOTTOM, ABE_TOP, ABM_NEW,
@@ -23,8 +20,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use crate::{settings, taskbar};
 
-/// Height of the reserved strip, in logical (96-dpi) pixels. Keep in sync with `--strip` in App.css.
-const STRIP_HEIGHT: i32 = 60;
 const SUBCLASS_ID: usize = 0x4C41_4221;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -122,19 +117,24 @@ fn apply_position() {
     }
     let hwnd = HWND(state.hwnd as _);
     unsafe {
-        let monitor = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
-        let mut mi = MONITORINFO {
-            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-            ..Default::default()
-        };
-        if !GetMonitorInfoW(monitor, &mut mi).as_bool() {
-            log("[dock] GetMonitorInfoW failed");
+        let prefs = settings::get();
+        let displays = settings::displays();
+        // The chosen display if it is still connected, else the main one.
+        let Some(display) = prefs
+            .display
+            .as_ref()
+            .and_then(|id| displays.iter().find(|d| &d.id == id))
+            .or_else(|| displays.iter().find(|d| d.primary))
+            .or(displays.first())
+        else {
+            log("[dock] no display found");
             return;
-        }
+        };
+        // A move to a display with another scale sends WM_DPICHANGED, which re-runs this.
         let dpi = GetDpiForWindow(hwnd).max(96) as i32;
-        let height = STRIP_HEIGHT * dpi / 96;
+        let height = prefs.size.strip_height() * dpi / 96;
 
-        let mut rc = mi.rcMonitor;
+        let mut rc = display.rect;
         match state.edge {
             Edge::Bottom => rc.top = rc.bottom - height,
             Edge::Top => rc.bottom = rc.top + height,
@@ -233,14 +233,13 @@ fn log(msg: &str) {
     eprintln!("{msg}");
 }
 
-#[tauri::command]
-pub fn dock_set_edge(app: AppHandle, edge: Edge) -> Result<(), String> {
+pub fn set_edge(edge: Edge) {
     STATE.lock().unwrap().edge = edge;
-    settings::update(|s| s.edge = edge);
-    let window = app.get_webview_window("main").ok_or("no dock window")?;
-    window
-        .run_on_main_thread(apply_position)
-        .map_err(|e| e.to_string())
+}
+
+/// Re-place the dock after a settings change. Must run on the main thread.
+pub fn reposition() {
+    apply_position();
 }
 
 #[tauri::command]

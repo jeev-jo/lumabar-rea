@@ -1,0 +1,82 @@
+/* Colours and sizes shared by every window. <html> carries data-theme
+   (system | dark | light) and data-size (small | medium | large). */
+
+:root,
+:root[data-theme="dark"] {
+  --bar-bg: rgba(22, 22, 26, 0.92);
+  --panel-bg: rgb(28, 28, 33);
+  --page-bg: rgb(32, 32, 36);
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.09);
+  --fg: #f2f2f4;
+  --hover: rgba(255, 255, 255, 0.08);
+  --active: rgba(255, 255, 255, 0.13);
+  --divider: rgba(255, 255, 255, 0.12);
+  --dot: rgba(255, 255, 255, 0.55);
+  --accent: #7cc4ff;
+  --fallback: rgba(255, 255, 255, 0.15);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bar-bg: rgba(248, 248, 250, 0.94);
+  --panel-bg: rgb(250, 250, 252);
+  --page-bg: rgb(243, 243, 246);
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --border: rgba(0, 0, 0, 0.08);
+  --fg: #1c1c21;
+  --hover: rgba(0, 0, 0, 0.06);
+  --active: rgba(0, 0, 0, 0.09);
+  --divider: rgba(0, 0, 0, 0.12);
+  --dot: rgba(0, 0, 0, 0.45);
+  --accent: #0a64c8;
+  --fallback: rgba(0, 0, 0, 0.08);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --bar-bg: rgba(248, 248, 250, 0.94);
+    --panel-bg: rgb(250, 250, 252);
+    --page-bg: rgb(243, 243, 246);
+    --card-bg: rgba(255, 255, 255, 0.9);
+    --border: rgba(0, 0, 0, 0.08);
+    --fg: #1c1c21;
+    --hover: rgba(0, 0, 0, 0.06);
+    --active: rgba(0, 0, 0, 0.09);
+    --divider: rgba(0, 0, 0, 0.12);
+    --dot: rgba(0, 0, 0, 0.45);
+    --accent: #0a64c8;
+    --fallback: rgba(0, 0, 0, 0.08);
+    color-scheme: light;
+  }
+}
+
+/* --strip must match Size::strip_height in src-tauri/src/settings.rs */
+:root,
+:root[data-size="medium"] {
+  --strip: 60px;
+  --bar: 48px;
+  --btn: 42px;
+  --icon: 28px;
+}
+
+:root[data-size="small"] {
+  --strip: 52px;
+  --bar: 42px;
+  --btn: 36px;
+  --icon: 24px;
+}
+
+:root[data-size="large"] {
+  --strip: 72px;
+  --bar: 58px;
+  --btn: 52px;
+  --icon: 34px;
+}
+
+:root {
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--fg);
+}

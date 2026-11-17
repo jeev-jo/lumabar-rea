@@ -5,6 +5,8 @@ mod settings;
 mod system;
 mod taskbar;
 
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, RunEvent, WindowEvent};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -39,6 +41,13 @@ pub fn run() {
             if window.label() == "main" && matches!(event, WindowEvent::Destroyed) {
                 window.app_handle().exit(0);
             }
+            // Closing Settings only hides it, so it opens instantly next time.
+            if window.label() == "settings" {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
         })
         .setup(|app| {
             // Always undo a previous run that never cleaned up, before anything else.
@@ -47,6 +56,33 @@ pub fn run() {
             if settings::get().taskbar_mode == settings::TaskbarMode::Hide {
                 taskbar::hide();
             }
+
+            let settings_item = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit luma-ai-bar", true, None::<&str>)?;
+            let tray_menu = Menu::with_items(app, &[&settings_item, &quit_item])?;
+            let mut tray = TrayIconBuilder::with_id("main")
+                .tooltip("luma-ai-bar")
+                .menu(&tray_menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "settings" => settings::open_window(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        settings::open_window(tray.app_handle());
+                    }
+                });
+            if let Some(icon) = app.default_window_icon() {
+                tray = tray.icon(icon.clone());
+            }
+            tray.build(app)?;
 
             if let Err(e) = app.global_shortcut().register(panic_shortcut()) {
                 eprintln!("[dock] panic hotkey unavailable: {e}");
@@ -59,6 +95,12 @@ pub fn run() {
             apps::init(app.handle(), &window)?;
             preview::init(app.handle())?;
             system::init(app.handle());
+
+            // Dev-only test hook: LUMA_DEBUG_SETTINGS=1 opens the settings window at start.
+            #[cfg(debug_assertions)]
+            if std::env::var_os("LUMA_DEBUG_SETTINGS").is_some() {
+                settings::open_window(app.handle());
+            }
 
             // Dev-only test hook: LUMA_DEBUG_PREVIEW=chrome opens Chrome's preview
             // after start-up, so previews can be checked without moving the mouse.
@@ -89,10 +131,14 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            dock::dock_set_edge,
             dock::quit_app,
             settings::get_settings,
-            settings::set_taskbar_mode,
+            settings::update_settings,
+            settings::reset_pins,
+            settings::list_displays,
+            settings::get_autostart,
+            settings::set_autostart,
+            settings::open_settings,
             apps::apps_snapshot,
             apps::app_icon,
             apps::app_activate,

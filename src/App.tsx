@@ -3,11 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { AppButton, useApps } from "./apps";
 import { Clock, StartButton, SystemStrip, useSystemStatus } from "./system";
+import { type Edge, updateSettings, useSettings } from "./settings";
 import "./App.css";
-
-type Edge = "top" | "bottom";
-type TaskbarMode = "hide" | "leave";
-type Settings = { edge: Edge; taskbar_mode: TaskbarMode };
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -19,7 +16,8 @@ function useClock() {
 }
 
 export default function App() {
-  const [edge, setEdge] = useState<Edge>("bottom");
+  const settings = useSettings();
+  const edge: Edge = settings?.edge ?? "bottom";
   const [dragging, setDragging] = useState(false);
   const dragStartY = useRef<number | null>(null);
   const draggedPin = useRef<string | null>(null);
@@ -37,30 +35,26 @@ export default function App() {
     invoke("pins_reorder", { keys }).catch(console.error);
   }
 
-  useEffect(() => {
-    invoke<Settings>("get_settings")
-      .then((s) => setEdge(s.edge))
-      .catch(console.error);
-  }, []);
-
   function moveTo(target: Edge) {
     if (target === edge) return;
-    setEdge(target);
-    invoke("dock_set_edge", { edge: target }).catch(console.error);
+    updateSettings({ edge: target }).catch(console.error);
   }
 
   async function onContextMenu(e: React.MouseEvent) {
     e.preventDefault();
-    const settings = await invoke<Settings>("get_settings");
+    if (!settings) return;
+    const hiding = settings.taskbar_mode === "hide";
     const menu = await Menu.new({
       items: [
+        await MenuItem.new({
+          text: "Settings…",
+          action: () => invoke("open_settings"),
+        }),
+        await PredefinedMenuItem.new({ item: "Separator" }),
         await CheckMenuItem.new({
           text: "Hide the Windows taskbar",
-          checked: settings.taskbar_mode === "hide",
-          action: () =>
-            invoke("set_taskbar_mode", {
-              mode: settings.taskbar_mode === "hide" ? "leave" : "hide",
-            }).catch(console.error),
+          checked: hiding,
+          action: () => updateSettings({ taskbar_mode: hiding ? "leave" : "hide" }).catch(console.error),
         }),
         await PredefinedMenuItem.new({ item: "Separator" }),
         await MenuItem.new({

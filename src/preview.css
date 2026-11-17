@@ -1,9 +1,6 @@
 /* Card sizes: keep in sync with CARD_W / CARD_H / GAP / PAD in src-tauri/src/preview.rs */
 :root {
-  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   font-size: 12px;
-  color: #f2f2f4;
-  color-scheme: dark;
   user-select: none;
 }
 
@@ -23,8 +20,8 @@ body,
   display: flex;
   gap: 8px;
   border-radius: 14px;
-  background: rgb(28, 28, 33);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
 }
 
 .card {
@@ -41,7 +38,7 @@ body,
 }
 
 .card:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--hover);
 }
 
 .card.attention {
@@ -87,6 +84,7 @@ body,
 .close:hover {
   opacity: 1 !important;
   background: #c42b1c;
+  color: #fff;
 }
 
 /* DWM draws the live window image on top of this box. */
@@ -101,7 +99,7 @@ body,
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--card-bg);
   opacity: 0.7;
 }
 

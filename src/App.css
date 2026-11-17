@@ -1,11 +1,4 @@
 :root {
-  /* Keep in sync with STRIP_HEIGHT in src-tauri/src/dock.rs */
-  --strip: 60px;
-  --bar: 48px;
-  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  font-size: 13px;
-  color: #f2f2f4;
-  color-scheme: dark;
   user-select: none;
 }
 
@@ -35,8 +28,8 @@ body,
   align-items: center;
   gap: 6px;
   border-radius: 16px;
-  background: rgba(22, 22, 26, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
   cursor: grab;
   transition: opacity 120ms;
 }
@@ -67,13 +60,13 @@ body,
 .divider {
   width: 1px;
   height: 24px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--divider);
 }
 
 .app {
   position: relative;
-  width: 42px;
-  height: 42px;
+  width: var(--btn);
+  height: var(--btn);
   flex: none;
   display: grid;
   place-items: center;
@@ -86,7 +79,23 @@ body,
 }
 
 .app:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--hover);
+}
+
+/* Hover magnify: the icon grows and lifts away from the screen edge. */
+.app img,
+.app .fallback {
+  transition: transform 140ms cubic-bezier(0.3, 0.7, 0.4, 1.4);
+}
+
+.app:hover img,
+.app:hover .fallback {
+  transform: scale(1.16) translateY(-2px);
+}
+
+.edge-top .app:hover img,
+.edge-top .app:hover .fallback {
+  transform: scale(1.16) translateY(2px);
 }
 
 .app:active {
@@ -94,22 +103,22 @@ body,
 }
 
 .app.active {
-  background: rgba(255, 255, 255, 0.13);
+  background: var(--active);
 }
 
 .app img {
-  width: 28px;
-  height: 28px;
+  width: var(--icon);
+  height: var(--icon);
   pointer-events: none;
 }
 
 .app .fallback {
-  width: 28px;
-  height: 28px;
+  width: var(--icon);
+  height: var(--icon);
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--fallback);
   font-weight: 600;
 }
 
@@ -134,13 +143,13 @@ body,
   width: 4px;
   height: 3px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--dot);
   transition: width 150ms, background 150ms;
 }
 
 .app.active .dots i {
   width: 12px;
-  background: #7cc4ff;
+  background: var(--accent);
 }
 
 .app.attention {
@@ -169,7 +178,7 @@ body,
 }
 
 .sys {
-  height: 40px;
+  height: calc(var(--bar) - 8px);
   min-width: 36px;
   padding: 0 8px;
   display: flex;
@@ -186,17 +195,17 @@ body,
 }
 
 .sys:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--hover);
 }
 
 .sys:active {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--active);
 }
 
 .sys.start {
-  width: 42px;
+  width: var(--btn);
   padding: 0;
-  color: #7cc4ff;
+  color: var(--accent);
 }
 
 .system {

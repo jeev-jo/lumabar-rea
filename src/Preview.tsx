@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { AppEntry, WindowInfo } from "./apps";
+import { useSettings } from "./settings";
 import "./preview.css";
 
 type PreviewData = { key: string; name: string; icon: string; windows: WindowInfo[] };
@@ -11,6 +12,7 @@ export default function Preview() {
   const [data, setData] = useState<PreviewData | null>(null);
   const [icon, setIcon] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  useSettings(); // theme
 
   useEffect(() => {
     const a = listen<PreviewData>("preview-data", (e) => setData(e.payload));
