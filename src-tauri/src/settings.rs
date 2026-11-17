@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
+use crate::apps::Pin;
 use crate::dock::Edge;
 use crate::taskbar;
 
@@ -17,11 +18,13 @@ pub enum TaskbarMode {
     Leave,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub edge: Edge,
     pub taskbar_mode: TaskbarMode,
+    /// `None` until first run, when it is seeded from the Windows taskbar's pins.
+    pub pins: Option<Vec<Pin>>,
 }
 
 impl Default for Settings {
@@ -29,6 +32,7 @@ impl Default for Settings {
         Self {
             edge: Edge::Bottom,
             taskbar_mode: TaskbarMode::Hide,
+            pins: None,
         }
     }
 }
@@ -41,18 +45,20 @@ fn path() -> std::path::PathBuf {
 
 pub fn get() -> Settings {
     let mut guard = SETTINGS.lock().unwrap();
-    *guard.get_or_insert_with(|| {
+    guard
+        .get_or_insert_with(|| {
         fs::read_to_string(path())
             .ok()
             .and_then(|t| serde_json::from_str(&t).ok())
             .unwrap_or_default()
-    })
+        })
+        .clone()
 }
 
 pub fn update(f: impl FnOnce(&mut Settings)) -> Settings {
     let mut s = get();
     f(&mut s);
-    *SETTINGS.lock().unwrap() = Some(s);
+    *SETTINGS.lock().unwrap() = Some(s.clone());
     let write = fs::create_dir_all(taskbar::data_dir())
         .and_then(|_| fs::write(path(), serde_json::to_string_pretty(&s).unwrap()));
     if let Err(e) = write {

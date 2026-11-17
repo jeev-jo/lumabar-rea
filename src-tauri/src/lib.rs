@@ -1,3 +1,4 @@
+mod apps;
 mod dock;
 mod settings;
 mod taskbar;
@@ -46,6 +47,7 @@ pub fn run() {
                 .get_webview_window("main")
                 .expect("the dock window is declared in tauri.conf.json");
             dock::init(&window)?;
+            apps::init(app.handle(), &window)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -53,6 +55,16 @@ pub fn run() {
             dock::quit_app,
             settings::get_settings,
             settings::set_taskbar_mode,
+            apps::apps_snapshot,
+            apps::app_icon,
+            apps::app_activate,
+            apps::app_launch,
+            apps::window_focus,
+            apps::window_close,
+            apps::app_close_all,
+            apps::app_pin,
+            apps::app_unpin,
+            apps::pins_reorder,
         ])
         .build(tauri::generate_context!())
         .expect("error while building luma-ai-bar")

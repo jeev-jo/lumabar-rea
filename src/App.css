@@ -28,8 +28,9 @@ body,
 .bar {
   height: var(--bar);
   min-width: 420px;
+  max-width: calc(100vw - 24px);
   box-sizing: border-box;
-  padding: 0 8px 0 18px;
+  padding: 0 8px 0 6px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -45,14 +46,12 @@ body,
   opacity: 0.6;
 }
 
+/* Shown only before the app list loads. */
 .brand {
+  padding-left: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   opacity: 0.85;
-}
-
-.spacer {
-  flex: 1;
 }
 
 .clock {
@@ -86,4 +85,110 @@ body,
 .quit:hover {
   background: rgba(255, 255, 255, 0.1);
   opacity: 1;
+}
+
+/* ---- apps ---------------------------------------------------------- */
+
+.apps {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.app {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+  transition: background 120ms, transform 120ms;
+}
+
+.app:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app:active {
+  transform: scale(0.92);
+}
+
+.app.active {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.app img {
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+}
+
+.app .fallback {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+}
+
+/* Running indicator: one dot per window (up to 3), wider when the app is in front. */
+.app .dots {
+  position: absolute;
+  bottom: 1px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  height: 3px;
+}
+
+.edge-top .app .dots {
+  bottom: auto;
+  top: 1px;
+}
+
+.app .dots i {
+  width: 4px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  transition: width 150ms, background 150ms;
+}
+
+.app.active .dots i {
+  width: 12px;
+  background: #7cc4ff;
+}
+
+.app.attention {
+  animation: attention 1s ease-in-out infinite alternate;
+}
+
+.app.attention .dots i {
+  background: #ffb347;
+}
+
+@keyframes attention {
+  from {
+    background: rgba(255, 179, 71, 0.08);
+  }
+  to {
+    background: rgba(255, 179, 71, 0.32);
+  }
 }
