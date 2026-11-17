@@ -438,6 +438,19 @@ pub fn open_ms_settings(page: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Open the quick list the Windows taskbar shows for Wi-Fi networks or
+/// Bluetooth devices.
+#[tauri::command]
+pub fn open_quick_list(kind: String) -> Result<(), String> {
+    let uri = match kind.as_str() {
+        "wifi" => "ms-availablenetworks:",
+        "bluetooth" => "ms-actioncenter:controlcenter/bluetooth",
+        other => return Err(format!("unknown list {other}")),
+    };
+    open_uri(uri);
+    Ok(())
+}
+
 fn open_uri(uri: &str) {
     use windows::core::{w, HSTRING, PCWSTR};
     use windows::Win32::UI::Shell::ShellExecuteW;

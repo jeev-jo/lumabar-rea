@@ -1352,3 +1352,99 @@ html.popover-page #root {
 .transport button.glyph {
   font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets" !important;
 }
+
+/* ---- polish: battery width + charging snow; toggles gear; no sideways scroll ---- */
+
+.widget.kind-battery.size-s {
+  width: 56px;
+  padding: 0 6px;
+}
+
+.widget.kind-battery {
+  position: relative;
+  overflow: hidden;
+}
+
+.w-battery > .glyph,
+.w-battery > b,
+.w-battery > small {
+  position: relative; /* above the snow */
+}
+
+.snow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.snow i {
+  position: absolute;
+  top: -6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.7);
+  animation-name: snowfall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes snowfall {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(3px, 26px);
+  }
+  85% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-2px, 52px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snow {
+    display: none;
+  }
+}
+
+.toggle-row .gear {
+  width: 30px;
+  height: 30px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  font-size: 14px;
+}
+
+/* Details views never scroll sideways; long names wrap and end with "…". */
+.popover {
+  overflow-x: hidden;
+}
+
+.now-panel {
+  min-width: 0;
+}
+
+.now-panel .title,
+.now-panel .artist {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.now-panel .title {
+  -webkit-line-clamp: 2;
+}
+
+.now-panel .artist {
+  -webkit-line-clamp: 1;
+}

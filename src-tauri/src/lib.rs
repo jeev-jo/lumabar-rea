@@ -214,6 +214,7 @@ pub fn run() {
             system::volume_set,
             system::radio_set,
             system::open_ms_settings,
+            system::open_quick_list,
             system::wallpaper_image,
             screentime::screen_time_today,
             stats::stats_history,

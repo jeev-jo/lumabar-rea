@@ -22,6 +22,7 @@ const G = {
   music: "",
   watch: "",
   photo: "",
+  gear: "",
 };
 
 const settingsPage = (page: string) => invoke("open_ms_settings", { page }).catch(console.error);
@@ -46,12 +47,33 @@ const hm = (mins: number) => (mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 6
 
 // ---- Battery ---------------------------------------------------------------
 
+/** Fixed positions/timings so the snowfall looks random but doesn't jump on re-render. */
+const FLAKES = [
+  { x: 8, d: 0, t: 2.6, s: 3 },
+  { x: 22, d: 1.1, t: 3.1, s: 2 },
+  { x: 36, d: 0.5, t: 2.4, s: 3 },
+  { x: 50, d: 1.8, t: 2.9, s: 2 },
+  { x: 63, d: 0.9, t: 2.2, s: 3 },
+  { x: 76, d: 2.2, t: 3.3, s: 2 },
+  { x: 88, d: 0.3, t: 2.7, s: 3 },
+  { x: 15, d: 2.6, t: 2.8, s: 2 },
+  { x: 57, d: 3.0, t: 2.5, s: 2 },
+  { x: 82, d: 1.5, t: 3.0, s: 3 },
+];
+
 export function BatteryTile({ instance, preview }: WidgetProps) {
   const b = useStatus(preview)?.battery;
   if (!b) return <div className="w-battery none">No battery</div>;
   const low = b.percent <= 15 && !b.charging;
   return (
     <div className={`w-battery ${instance.size}${low ? " low" : ""}`} title={`Battery ${b.percent}%${b.charging ? ", charging" : ""}`}>
+      {b.charging && (
+        <span className="snow" aria-hidden>
+          {FLAKES.map((f, i) => (
+            <i key={i} style={{ left: `${f.x}%`, animationDelay: `${f.d}s`, animationDuration: `${f.t}s`, width: f.s, height: f.s }} />
+          ))}
+        </span>
+      )}
       {b.charging && <span className="glyph">{G.bolt}</span>}
       <b>{b.percent}</b>
       {instance.size !== "s" && (
@@ -204,10 +226,11 @@ function RadioPill({ kind, on, preview }: { kind: "wifi" | "bluetooth"; on: bool
       </button>
       <button
         className="glyph more"
-        aria-label={`${label} settings`}
+        aria-label={kind === "wifi" ? "Show Wi-Fi networks" : "Show Bluetooth devices"}
+        title={kind === "wifi" ? "Show Wi-Fi networks" : "Show Bluetooth devices"}
         onClick={(e) => {
           stop(e);
-          if (!preview) settingsPage(kind === "wifi" ? "network-wifi" : "bluetooth");
+          if (!preview) invoke("open_quick_list", { kind }).catch(console.error);
         }}
       >
         {G.chevron}
@@ -238,6 +261,14 @@ export function TogglesPanel() {
           <small>{on ? "On" : "Off"}</small>
         </span>
         <RadioPill kind={kind} on={on} />
+        <button
+          className="glyph gear"
+          title={`${label} settings`}
+          aria-label={`Open ${label} settings`}
+          onClick={() => settingsPage(kind === "wifi" ? "network-wifi" : "bluetooth")}
+        >
+          {G.gear}
+        </button>
       </div>
     );
   return (
@@ -245,7 +276,7 @@ export function TogglesPanel() {
       <h3>Quick toggles</h3>
       {row("wifi", "Wi-Fi", s?.wifi)}
       {row("bluetooth", "Bluetooth", s?.bluetooth)}
-      <p className="fine">Click to switch on or off; the arrow opens its Windows settings.</p>
+      <p className="fine">Click to switch on or off. The arrow lists networks or devices; the gear opens the full settings.</p>
     </div>
   );
 }
