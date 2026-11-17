@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { AppButton, useApps } from "./apps";
+import { Clock, StartButton, SystemStrip, useSystemStatus } from "./system";
 import "./App.css";
 
 type Edge = "top" | "bottom";
@@ -24,6 +25,7 @@ export default function App() {
   const draggedPin = useRef<string | null>(null);
   const now = useClock();
   const apps = useApps();
+  const status = useSystemStatus();
 
   function dropOnPin(targetKey: string) {
     const from = draggedPin.current;
@@ -103,6 +105,8 @@ export default function App() {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
+        <StartButton />
+        <span className="divider" />
         <div className="apps">
           {apps.length === 0 && <span className="brand">luma</span>}
           {apps.map((app) => (
@@ -115,13 +119,8 @@ export default function App() {
           ))}
         </div>
         <span className="divider" />
-        <span className="clock">
-          {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          <small>{now.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}</small>
-        </span>
-        <button className="quit" title="Quit luma-ai-bar" onClick={() => invoke("quit_app")}>
-          ×
-        </button>
+        <SystemStrip status={status} />
+        <Clock now={now} />
       </div>
     </div>
   );

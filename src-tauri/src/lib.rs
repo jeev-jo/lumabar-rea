@@ -2,6 +2,7 @@ mod apps;
 mod dock;
 mod preview;
 mod settings;
+mod system;
 mod taskbar;
 
 use tauri::{Manager, RunEvent, WindowEvent};
@@ -57,6 +58,7 @@ pub fn run() {
             dock::init(&window)?;
             apps::init(app.handle(), &window)?;
             preview::init(app.handle())?;
+            system::init(app.handle());
 
             // Dev-only test hook: LUMA_DEBUG_PREVIEW=chrome opens Chrome's preview
             // after start-up, so previews can be checked without moving the mouse.
@@ -105,6 +107,11 @@ pub fn run() {
             preview::preview_layout,
             preview::preview_hover,
             preview::preview_hide,
+            system::system_status,
+            system::open_flyout,
+            system::volume_step,
+            system::volume_toggle_mute,
+            system::media_control,
         ])
         .build(tauri::generate_context!())
         .expect("error while building luma-ai-bar")

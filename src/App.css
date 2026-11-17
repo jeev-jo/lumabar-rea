@@ -30,10 +30,10 @@ body,
   min-width: 420px;
   max-width: calc(100vw - 24px);
   box-sizing: border-box;
-  padding: 0 8px 0 6px;
+  padding: 0 6px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   border-radius: 16px;
   background: rgba(22, 22, 26, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -52,39 +52,6 @@ body,
   font-weight: 600;
   letter-spacing: 0.04em;
   opacity: 0.85;
-}
-
-.clock {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-}
-
-.clock small {
-  font-weight: 400;
-  font-size: 11px;
-  opacity: 0.65;
-}
-
-.quit {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: inherit;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0.6;
-}
-
-.quit:hover {
-  background: rgba(255, 255, 255, 0.1);
-  opacity: 1;
 }
 
 /* ---- apps ---------------------------------------------------------- */
@@ -191,4 +158,155 @@ body,
   to {
     background: rgba(255, 179, 71, 0.32);
   }
+}
+
+/* ---- system strip ---------------------------------------------------- */
+
+.glyph {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 15px;
+  line-height: 1;
+}
+
+.sys {
+  height: 40px;
+  min-width: 36px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+  transition: background 120ms;
+}
+
+.sys:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sys:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sys.start {
+  width: 42px;
+  padding: 0;
+  color: #7cc4ff;
+}
+
+.system {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.media {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  max-width: 240px;
+  margin-right: 4px;
+}
+
+.sys.glyph {
+  min-width: 30px;
+  height: 32px;
+  padding: 0;
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 14px;
+}
+
+.sys.glyph.small {
+  font-size: 11px;
+  min-width: 24px;
+  opacity: 0.8;
+}
+
+.media-text {
+  min-width: 0;
+  padding-left: 4px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.media-text b,
+.media-text small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-text b {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.media-text small {
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.battery {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.battery .cell {
+  position: relative;
+  width: 20px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  padding: 1px;
+}
+
+/* the terminal nub */
+.battery .cell::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  top: 2px;
+  width: 2px;
+  height: 3px;
+  border-radius: 0 1px 1px 0;
+  background: currentColor;
+}
+
+.battery .fill {
+  display: block;
+  height: 100%;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.battery.low {
+  color: #ff6b5e;
+}
+
+.battery .bolt {
+  font-size: 11px;
+}
+
+.sys.clock {
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.sys.clock small {
+  font-weight: 400;
+  font-size: 11px;
+  opacity: 0.65;
 }
