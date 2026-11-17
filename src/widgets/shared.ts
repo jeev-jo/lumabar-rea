@@ -4,12 +4,18 @@ import { listen } from "@tauri-apps/api/event";
 
 export type WidgetSize = "s" | "m" | "l";
 
+export type WidgetSide = "left" | "right";
+
 export type WidgetInstance = {
   id: string;
   kind: string;
   size: WidgetSize;
   config: Record<string, unknown>;
+  /** Which side of the app icons; older settings may not have it (= right). */
+  side?: WidgetSide;
 };
+
+export const sideOf = (w: WidgetInstance): WidgetSide => (w.side === "left" ? "left" : "right");
 
 /** Props every tile and panel gets. `preview` = shown in the picker: no side effects. */
 export type WidgetProps<C = Record<string, unknown>> = {

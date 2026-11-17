@@ -23,17 +23,17 @@ const PROVIDERS: { id: Provider; short: string; name: string; keyHint?: string; 
     short: "Claude API",
     name: "Claude API spend",
     keyHint: "An Admin API key (starts sk-ant-admin), from the Claude Console under Settings → Admin keys. Data arrives 4–24 hours late.",
-    every: 30 * 60_000,
+    every: 60_000,
   },
   {
     id: "openai",
     short: "OpenAI",
     name: "OpenAI API spend",
     keyHint: "An OpenAI admin key, from the OpenAI platform's organization settings.",
-    every: 30 * 60_000,
+    every: 60_000,
   },
-  { id: "deepseek", short: "DeepSeek", name: "DeepSeek balance", keyHint: "Your DeepSeek API key.", every: 15 * 60_000 },
-  { id: "claude_code", short: "Claude plan", name: "Claude plan limits (experimental)", every: 5 * 60_000 },
+  { id: "deepseek", short: "DeepSeek", name: "DeepSeek balance", keyHint: "Your DeepSeek API key.", every: 60_000 },
+  { id: "claude_code", short: "Claude plan", name: "Claude plan limits (experimental)", every: 60_000 },
 ];
 const providerOf = (cfg: AiConfig) => PROVIDERS.find((p) => p.id === (cfg.provider ?? "anthropic"))!;
 

@@ -739,3 +739,21 @@ html.popover-page #root {
 .w-ai.multi .meter.thin {
   flex-basis: auto;
 }
+
+/* Two or three times must fit side by side: never wrap a time. */
+.w-worldclock {
+  gap: 8px !important;
+}
+
+.w-worldclock .zone b {
+  white-space: nowrap;
+}
+
+.w-worldclock.m .zone b,
+.w-worldclock.l .zone b {
+  font-size: 12px;
+}
+
+.w-worldclock .zone {
+  flex: 1 1 0;
+}

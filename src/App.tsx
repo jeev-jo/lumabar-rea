@@ -5,6 +5,7 @@ import { AppButton, useApps } from "./apps";
 import { Clock, StartButton, SystemStrip, useSystemStatus } from "./system";
 import { type Edge, updateSettings, useSettings } from "./settings";
 import { DockWidgets } from "./widgets/DockWidgets";
+import { sideOf } from "./widgets/shared";
 import "./widgets/widgets.css";
 import "./App.css";
 
@@ -20,6 +21,8 @@ function useClock() {
 export default function App() {
   const settings = useSettings();
   const edge: Edge = settings?.edge ?? "bottom";
+  const leftWidgets = (settings?.widgets ?? []).filter((w) => sideOf(w) === "left");
+  const rightWidgets = (settings?.widgets ?? []).filter((w) => sideOf(w) === "right");
   const [dragging, setDragging] = useState(false);
   const dragStartY = useRef<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -124,6 +127,12 @@ export default function App() {
       >
         <StartButton />
         <span className="divider" />
+        {leftWidgets.length > 0 && (
+          <>
+            <DockWidgets widgets={leftWidgets} />
+            <span className="divider" />
+          </>
+        )}
         <div className="apps">
           {apps.length === 0 && <span className="brand">luma</span>}
           {apps.map((app) => (
@@ -135,10 +144,10 @@ export default function App() {
             />
           ))}
         </div>
-        {settings && settings.widgets.length > 0 && (
+        {rightWidgets.length > 0 && (
           <>
             <span className="divider" />
-            <DockWidgets widgets={settings.widgets} />
+            <DockWidgets widgets={rightWidgets} />
           </>
         )}
         <span className="divider" />

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { byKind, SIZE_LABEL } from "./registry";
-import type { WidgetInstance } from "./shared";
+import { sideOf, type WidgetInstance } from "./shared";
 
 async function widgetMenu(w: WidgetInstance) {
   const kind = byKind(w.kind);
@@ -16,8 +16,13 @@ async function widgetMenu(w: WidgetInstance) {
       }),
     );
   }
+  const other = sideOf(w) === "left" ? "right" : "left";
   items.push(
     await PredefinedMenuItem.new({ item: "Separator" }),
+    await MenuItem.new({
+      text: `Move to the ${other} of the apps`,
+      action: () => invoke("widget_update", { id: w.id, side: other }),
+    }),
     await MenuItem.new({ text: `Remove ${kind.name}`, action: () => invoke("widgets_remove", { id: w.id }) }),
     await MenuItem.new({ text: "Widgets…", action: () => invoke("open_widget_picker") }),
   );

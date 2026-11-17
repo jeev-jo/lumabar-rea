@@ -34,6 +34,17 @@ pub struct WidgetInstance {
     /// Per-widget options (city, time zones, durations...).
     #[serde(default)]
     pub config: Value,
+    /// Which side of the app icons it sits on: "left" or "right".
+    #[serde(default = "default_side")]
+    pub side: String,
+}
+
+fn default_side() -> String {
+    "right".into()
+}
+
+fn clean_side(side: Option<String>) -> Option<String> {
+    side.filter(|s| s == "left" || s == "right")
 }
 
 fn broadcast(app: &AppHandle) {
@@ -49,13 +60,20 @@ fn new_id() -> String {
 }
 
 #[tauri::command]
-pub fn widgets_add(app: AppHandle, kind: String, size: String, config: Option<Value>) -> String {
+pub fn widgets_add(
+    app: AppHandle,
+    kind: String,
+    size: String,
+    config: Option<Value>,
+    side: Option<String>,
+) -> String {
     let id = new_id();
     let inst = WidgetInstance {
         id: id.clone(),
         kind,
         size,
         config: config.unwrap_or(Value::Object(Default::default())),
+        side: clean_side(side).unwrap_or_else(default_side),
     };
     settings::update(|s| s.widgets.push(inst));
     broadcast(&app);
@@ -82,11 +100,20 @@ pub fn widgets_reorder(app: AppHandle, ids: Vec<String>) {
 }
 
 #[tauri::command]
-pub fn widget_update(app: AppHandle, id: String, size: Option<String>, config: Option<Value>) {
+pub fn widget_update(
+    app: AppHandle,
+    id: String,
+    size: Option<String>,
+    config: Option<Value>,
+    side: Option<String>,
+) {
     settings::update(|s| {
         if let Some(w) = s.widgets.iter_mut().find(|w| w.id == id) {
             if let Some(size) = size {
                 w.size = size;
+            }
+            if let Some(side) = clean_side(side) {
+                w.side = side;
             }
             if let Some(config) = config {
                 w.config = config;
