@@ -52,6 +52,30 @@ function useIcon(path: string) {
   return src;
 }
 
+// Hover previews: open after a short rest; once one is open, moving to the
+// next icon switches straight away.
+let hoverTimer: number | undefined;
+let lastLeave = 0;
+
+function hoverEnter(key: string, el: HTMLElement) {
+  window.clearTimeout(hoverTimer);
+  const r = el.getBoundingClientRect();
+  const show = () => invoke("preview_show", { key, anchorX: r.left + r.width / 2 }).catch(console.error);
+  if (Date.now() - lastLeave < 300) show();
+  else hoverTimer = window.setTimeout(show, 450);
+}
+
+function hoverLeave() {
+  window.clearTimeout(hoverTimer);
+  lastLeave = Date.now();
+  invoke("preview_hover", { source: "dock", inside: false });
+}
+
+function hidePreview() {
+  window.clearTimeout(hoverTimer);
+  invoke("preview_hide");
+}
+
 const short = (s: string, n = 48) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
 async function showAppMenu(app: AppEntry) {
@@ -96,8 +120,8 @@ type Props = {
 export function AppButton({ app, onDragStartPin, onDropOnPin }: Props) {
   const icon = useIcon(app.icon);
   const running = app.windows.length > 0;
-  const label =
-    app.windows.length > 1 ? `${app.name} — ${app.windows.length} windows` : app.windows[0]?.title || app.name;
+  // Running apps get a preview instead of a tooltip.
+  const label = running ? undefined : app.name;
 
   const classes = ["app"];
   if (running) classes.push("running");
@@ -109,7 +133,12 @@ export function AppButton({ app, onDragStartPin, onDropOnPin }: Props) {
       className={classes.join(" ")}
       title={label}
       draggable={app.pinned}
-      onClick={() => invoke("app_activate", { key: app.key }).catch(console.error)}
+      onMouseEnter={(e) => running && hoverEnter(app.key, e.currentTarget)}
+      onMouseLeave={hoverLeave}
+      onClick={() => {
+        hidePreview();
+        invoke("app_activate", { key: app.key }).catch(console.error);
+      }}
       // Middle click starts a new instance, like the Windows taskbar.
       onMouseDown={(e) => e.button === 1 && e.preventDefault()}
       onAuxClick={(e) => {
@@ -118,9 +147,11 @@ export function AppButton({ app, onDragStartPin, onDropOnPin }: Props) {
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        hidePreview();
         showAppMenu(app).catch(console.error);
       }}
       onDragStart={(e) => {
+        hidePreview();
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", app.key);
         onDragStartPin(app.key);

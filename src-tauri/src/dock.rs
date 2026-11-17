@@ -68,15 +68,8 @@ fn appbar_data(state: &DockState) -> APPBARDATA {
 /// Called once from Tauri's setup hook, on the main thread.
 pub fn init(window: &WebviewWindow) -> tauri::Result<()> {
     let hwnd = HWND(window.hwnd()?.0 as _);
+    make_tool_window(hwnd);
     unsafe {
-        // Keep the dock out of Alt-Tab and stop clicks on it from stealing focus.
-        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        SetWindowLongPtrW(
-            hwnd,
-            GWL_EXSTYLE,
-            ex | (WS_EX_TOOLWINDOW.0 | WS_EX_NOACTIVATE.0) as isize,
-        );
-
         let callback_msg = RegisterWindowMessageW(w!("LumaAiBar.AppBarCallback"));
         let taskbar_created_msg = RegisterWindowMessageW(w!("TaskbarCreated"));
         {
@@ -92,6 +85,22 @@ pub fn init(window: &WebviewWindow) -> tauri::Result<()> {
     }
     apply_position();
     Ok(())
+}
+
+/// Keep a window out of Alt-Tab and stop clicks on it from stealing focus.
+pub fn make_tool_window(hwnd: HWND) {
+    unsafe {
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        SetWindowLongPtrW(
+            hwnd,
+            GWL_EXSTYLE,
+            ex | (WS_EX_TOOLWINDOW.0 | WS_EX_NOACTIVATE.0) as isize,
+        );
+    }
+}
+
+pub fn current_edge() -> Edge {
+    snapshot().edge
 }
 
 /// Register with the shell as an AppBar (again, after an Explorer restart).

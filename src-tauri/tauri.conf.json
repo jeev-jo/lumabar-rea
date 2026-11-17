@@ -27,6 +27,24 @@
         "dragDropEnabled": false,
         "maximizable": false,
         "minimizable": false
+      },
+      {
+        "label": "preview",
+        "title": "luma-ai-bar preview",
+        "width": 260,
+        "height": 200,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false,
+        "visible": false,
+        "focus": false,
+        "dragDropEnabled": false,
+        "maximizable": false,
+        "minimizable": false,
+        "url": "index.html?view=preview"
       }
     ],
     "security": {

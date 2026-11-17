@@ -607,7 +607,7 @@ fn launch(path: &str) -> Result<(), String> {
     }
 }
 
-fn focus(hwnd: HWND) {
+pub(crate) fn focus(hwnd: HWND) {
     unsafe {
         if IsIconic(hwnd).as_bool() {
             let _ = ShowWindow(hwnd, SW_RESTORE);
@@ -627,15 +627,20 @@ fn focus(hwnd: HWND) {
     }
 }
 
-fn find(key: &str) -> Result<AppEntry, String> {
+pub(crate) fn find(key: &str) -> Result<AppEntry, String> {
     snapshot()
         .into_iter()
         .find(|a| a.key == key)
         .ok_or_else(|| format!("no app {key}"))
 }
 
-fn hwnd(h: i64) -> HWND {
+pub(crate) fn hwnd(h: i64) -> HWND {
     HWND(h as isize as *mut c_void)
+}
+
+#[cfg(debug_assertions)]
+pub(crate) fn snapshot_for_debug() -> Vec<AppEntry> {
+    snapshot()
 }
 
 #[tauri::command]
