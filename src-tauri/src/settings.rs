@@ -26,6 +26,8 @@ use crate::taskbar;
 pub enum TaskbarMode {
     /// Auto-hide the Windows taskbar while the dock runs.
     Hide,
+    /// Hide it outright (falls back to auto-hide if Windows will not allow it).
+    Complete,
     /// Leave the Windows taskbar alone.
     Leave,
 }
@@ -113,6 +115,14 @@ pub fn update(f: impl FnOnce(&mut Settings)) -> Settings {
     s
 }
 
+pub fn apply_taskbar_mode(mode: TaskbarMode) {
+    match mode {
+        TaskbarMode::Hide => taskbar::hide(),
+        TaskbarMode::Complete => taskbar::hide_completely(),
+        TaskbarMode::Leave => taskbar::restore(),
+    }
+}
+
 fn broadcast(app: &AppHandle, s: &Settings) {
     let _ = app.emit("settings-changed", s);
 }
@@ -155,10 +165,7 @@ pub fn update_settings(app: AppHandle, patch: Patch) -> Settings {
         }
     });
     if s.taskbar_mode != before.taskbar_mode {
-        match s.taskbar_mode {
-            TaskbarMode::Hide => taskbar::hide(),
-            TaskbarMode::Leave => taskbar::restore(),
-        }
+        apply_taskbar_mode(s.taskbar_mode);
     }
     if s.edge != before.edge || s.size != before.size || s.display != before.display {
         dock::set_edge(s.edge);

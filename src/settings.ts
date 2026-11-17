@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import "./theme.css";
 
 export type Edge = "top" | "bottom";
-export type TaskbarMode = "hide" | "leave";
+export type TaskbarMode = "hide" | "complete" | "leave";
 export type Size = "small" | "medium" | "large";
 export type Theme = "system" | "dark" | "light";
 

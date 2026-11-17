@@ -53,9 +53,7 @@ pub fn run() {
             // Always undo a previous run that never cleaned up, before anything else.
             taskbar::restore();
             taskbar::spawn_watchdog();
-            if settings::get().taskbar_mode == settings::TaskbarMode::Hide {
-                taskbar::hide();
-            }
+            settings::apply_taskbar_mode(settings::get().taskbar_mode);
 
             let settings_item = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit luma-ai-bar", true, None::<&str>)?;
@@ -134,6 +132,7 @@ pub fn run() {
             dock::quit_app,
             settings::get_settings,
             settings::update_settings,
+            taskbar::taskbar_status,
             settings::reset_pins,
             settings::list_displays,
             settings::get_autostart,

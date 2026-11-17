@@ -1,19 +1,28 @@
 //! Hiding and restoring the Windows taskbar.
 //!
+//! Two strengths:
+//! - auto-hide: the documented `ABM_SETSTATE` switch. The taskbar still slides in
+//!   for Start, Search and when the pointer touches the screen edge.
+//! - complete: auto-hide *plus* hiding the taskbar windows themselves (main and
+//!   every secondary-monitor taskbar). Undocumented, so it is verified after every
+//!   attempt and falls back to auto-hide if Windows does not cooperate.
+//!
 //! Safety rules (PLAN.md section 5):
 //! 1. Before changing anything, the taskbar's original state is written to disk.
 //! 2. It is restored on normal exit, on panic, on session end, and by a watchdog
 //!    process if the dock is killed.
 //! 3. On every launch a leftover state file is restored first.
-//! 4. Only the documented auto-hide switch (`ABM_SETSTATE`) is used.
+//! 4. Explorer is never killed or patched; restoring always shows the taskbar
+//!    windows again and puts the original auto-hide flags back.
 
 use std::fs;
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
-use windows::core::w;
+use windows::core::{w, BOOL};
 use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM};
 use windows::Win32::System::Threading::{
     OpenProcess, WaitForSingleObject, INFINITE, PROCESS_SYNCHRONIZE,
@@ -21,7 +30,9 @@ use windows::Win32::System::Threading::{
 use windows::Win32::UI::Shell::{
     SHAppBarMessage, ABM_GETSTATE, ABM_SETSTATE, ABS_AUTOHIDE, APPBARDATA,
 };
-use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
+use windows::Win32::UI::WindowsAndMessaging::{
+    EnumWindows, FindWindowW, GetClassNameW, IsWindowVisible, ShowWindow, SW_HIDE, SW_SHOWNA,
+};
 
 pub const WATCHDOG_FLAG: &str = "--taskbar-watchdog";
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -30,7 +41,15 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 struct SavedState {
     /// `ABM_GETSTATE` flags before the dock changed them.
     original: u32,
+    /// The taskbar windows were hidden too, so restoring must show them again.
+    #[serde(default)]
+    complete: bool,
 }
+
+/// Complete hiding is in force (re-applied whenever Explorer re-shows the taskbar).
+static COMPLETE_ACTIVE: AtomicBool = AtomicBool::new(false);
+/// The last attempt at complete hiding did not stick; auto-hide is in use instead.
+static COMPLETE_FAILED: AtomicBool = AtomicBool::new(false);
 
 /// `%LOCALAPPDATA%\luma_ai_bar` (no Tauri needed, so the watchdog can use it too).
 pub fn data_dir() -> PathBuf {
@@ -63,41 +82,164 @@ fn set_flags(flags: u32) {
     unsafe { SHAppBarMessage(ABM_SETSTATE, &mut abd) };
 }
 
+pub fn is_taskbar_class(hwnd: HWND) -> bool {
+    let mut buf = [0u16; 64];
+    let n = unsafe { GetClassNameW(hwnd, &mut buf) }.max(0) as usize;
+    matches!(
+        String::from_utf16_lossy(&buf[..n]).as_str(),
+        "Shell_TrayWnd" | "Shell_SecondaryTrayWnd"
+    )
+}
+
+unsafe extern "system" fn collect_taskbar(hwnd: HWND, l: LPARAM) -> BOOL {
+    if is_taskbar_class(hwnd) {
+        unsafe { (*(l.0 as *mut Vec<HWND>)).push(hwnd) };
+    }
+    BOOL(1)
+}
+
+/// The main taskbar and every secondary-monitor taskbar.
+fn taskbar_windows() -> Vec<HWND> {
+    let mut out: Vec<HWND> = Vec::new();
+    unsafe {
+        let _ = EnumWindows(Some(collect_taskbar), LPARAM(&mut out as *mut _ as isize));
+    }
+    out
+}
+
+fn show_taskbars() {
+    for h in taskbar_windows() {
+        unsafe {
+            let _ = ShowWindow(h, SW_SHOWNA);
+        }
+    }
+}
+
+/// Hide every taskbar window; true if all of them ended up hidden.
+fn hide_taskbars() -> bool {
+    let bars = taskbar_windows();
+    if bars.is_empty() {
+        return false;
+    }
+    for &h in &bars {
+        unsafe {
+            let _ = ShowWindow(h, SW_HIDE);
+        }
+    }
+    bars.iter().all(|&h| unsafe { !IsWindowVisible(h).as_bool() })
+}
+
+fn save(state: &SavedState) -> std::io::Result<()> {
+    fs::create_dir_all(data_dir())?;
+    fs::write(state_file(), serde_json::to_string(state).unwrap())
+}
+
 /// Put the taskbar back the way it was, if we changed it. Safe to call any number
 /// of times, from any thread, including the panic hook and the watchdog.
 pub fn restore() {
+    COMPLETE_ACTIVE.store(false, Ordering::SeqCst);
     let path = state_file();
     let Ok(text) = fs::read_to_string(&path) else {
         return;
     };
     match serde_json::from_str::<SavedState>(&text) {
         Ok(saved) => {
+            if saved.complete {
+                show_taskbars();
+            }
             set_flags(saved.original);
-            eprintln!("[taskbar] restored original state 0x{:x}", saved.original);
+            eprintln!(
+                "[taskbar] restored original state 0x{:x}{}",
+                saved.original,
+                if saved.complete { " and showed the taskbar" } else { "" }
+            );
         }
-        Err(e) => eprintln!("[taskbar] unreadable state file, leaving taskbar as is: {e}"),
+        Err(e) => {
+            // Never leave the taskbar hidden, even if the file is damaged.
+            show_taskbars();
+            eprintln!("[taskbar] unreadable state file, showed the taskbar: {e}");
+        }
     }
     let _ = fs::remove_file(path);
 }
 
-/// Switch the taskbar to auto-hide, remembering what it was.
-pub fn hide() {
+/// Switch the taskbar to auto-hide (and, if `complete`, hide it outright),
+/// remembering what it was.
+fn apply(complete: bool) {
     // A leftover file means the last run never restored: put things back first,
     // so the "original" we record now is the user's real setting.
     restore();
+    COMPLETE_FAILED.store(false, Ordering::SeqCst);
     let original = get_flags();
-    if let Err(e) = fs::create_dir_all(data_dir()).and_then(|_| {
-        fs::write(
-            state_file(),
-            serde_json::to_string(&SavedState { original }).unwrap(),
-        )
-    }) {
+    if let Err(e) = save(&SavedState { original, complete }) {
         // Never change the taskbar without a way back.
         eprintln!("[taskbar] could not save state, not hiding the taskbar: {e}");
         return;
     }
+    // Auto-hide also frees the screen space the taskbar reserves.
     set_flags(original | ABS_AUTOHIDE);
-    eprintln!("[taskbar] auto-hide on (was 0x{original:x})");
+    if !complete {
+        eprintln!("[taskbar] auto-hide on (was 0x{original:x})");
+        return;
+    }
+    if hide_taskbars() {
+        COMPLETE_ACTIVE.store(true, Ordering::SeqCst);
+        eprintln!("[taskbar] hidden completely (was 0x{original:x})");
+    } else {
+        show_taskbars();
+        COMPLETE_FAILED.store(true, Ordering::SeqCst);
+        eprintln!("[taskbar] complete hiding did not stick - using auto-hide instead");
+    }
+}
+
+pub fn hide() {
+    apply(false);
+}
+
+pub fn hide_completely() {
+    apply(true);
+}
+
+/// Explorer re-showed a taskbar window (for Start, after a restart...): hide it again.
+pub fn on_taskbar_shown(hwnd: HWND) {
+    if COMPLETE_ACTIVE.load(Ordering::SeqCst) && is_taskbar_class(hwnd) {
+        unsafe {
+            let _ = ShowWindow(hwnd, SW_HIDE);
+        }
+    }
+}
+
+/// Explorer restarted and rebuilt the taskbar: put complete hiding back.
+pub fn on_taskbar_recreated() {
+    if COMPLETE_ACTIVE.load(Ordering::SeqCst) && !hide_taskbars() {
+        COMPLETE_ACTIVE.store(false, Ordering::SeqCst);
+        COMPLETE_FAILED.store(true, Ordering::SeqCst);
+        show_taskbars();
+        eprintln!("[taskbar] could not re-hide after Explorer restart - auto-hide only");
+    }
+}
+
+#[derive(Serialize)]
+pub struct TaskbarStatus {
+    /// "complete", "auto-hide" or "none"
+    pub applied: &'static str,
+    /// Complete hiding was asked for but Windows would not keep it hidden.
+    pub complete_failed: bool,
+}
+
+#[tauri::command]
+pub fn taskbar_status() -> TaskbarStatus {
+    let applied = if COMPLETE_ACTIVE.load(Ordering::SeqCst) {
+        "complete"
+    } else if state_file().exists() {
+        "auto-hide"
+    } else {
+        "none"
+    };
+    TaskbarStatus {
+        applied,
+        complete_failed: COMPLETE_FAILED.load(Ordering::SeqCst),
+    }
 }
 
 /// Restore the taskbar if a panic takes the dock down.

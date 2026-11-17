@@ -5,6 +5,7 @@ import { type Patch, updateSettings, useSettings } from "./settings";
 import "./settings-page.css";
 
 type Display = { id: string; label: string; primary: boolean };
+type TaskbarStatus = { applied: "complete" | "auto-hide" | "none"; complete_failed: boolean };
 
 function Segmented<T extends string>({
   value,
@@ -52,6 +53,7 @@ export default function SettingsPage() {
   const [autostart, setAutostart] = useState(false);
   const [version, setVersion] = useState("");
   const [pinsReset, setPinsReset] = useState(false);
+  const [taskbar, setTaskbar] = useState<TaskbarStatus | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.add("settings-page");
@@ -63,6 +65,11 @@ export default function SettingsPage() {
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   }, []);
+
+  // Ask what actually happened, since "hide completely" can fall back to auto-hide.
+  useEffect(() => {
+    invoke<TaskbarStatus>("taskbar_status").then(setTaskbar).catch(console.error);
+  }, [settings?.taskbar_mode]);
 
   if (!settings) return null;
   const set = (patch: Patch) => updateSettings(patch).catch(console.error);
@@ -108,13 +115,23 @@ export default function SettingsPage() {
       <section>
         <h2>Windows</h2>
         <Row
-          title="Hide the Windows taskbar"
-          hint="Auto-hides it while the dock runs and puts it back when the dock quits. Ctrl+Alt+Shift+Q quits the dock from anywhere."
+          title="Windows taskbar"
+          hint={
+            taskbar?.complete_failed
+              ? "Windows wouldn't stay hidden completely, so auto-hide is being used instead."
+              : settings.taskbar_mode === "complete"
+                ? "Stays hidden even for Start and Search. Comes back when the dock quits; Ctrl+Alt+Shift+Q quits it from anywhere."
+                : "Auto-hide still slides the taskbar in for Start and Search. It comes back when the dock quits; Ctrl+Alt+Shift+Q quits it from anywhere."
+          }
         >
-          <Toggle
-            label="Hide the Windows taskbar"
-            checked={settings.taskbar_mode === "hide"}
-            onChange={(on) => set({ taskbar_mode: on ? "hide" : "leave" })}
+          <Segmented
+            value={settings.taskbar_mode}
+            options={[
+              ["hide", "Auto-hide"],
+              ["complete", "Hide completely"],
+              ["leave", "Don't hide"],
+            ]}
+            onChange={(taskbar_mode) => set({ taskbar_mode })}
           />
         </Row>
         <Row title="Start with Windows" hint="Opens the dock when you sign in.">

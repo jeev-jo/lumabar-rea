@@ -43,7 +43,13 @@ export default function App() {
   async function onContextMenu(e: React.MouseEvent) {
     e.preventDefault();
     if (!settings) return;
-    const hiding = settings.taskbar_mode === "hide";
+    const mode = settings.taskbar_mode;
+    const modeItem = async (value: typeof mode, text: string) =>
+      CheckMenuItem.new({
+        text,
+        checked: mode === value,
+        action: () => updateSettings({ taskbar_mode: value }).catch(console.error),
+      });
     const menu = await Menu.new({
       items: [
         await MenuItem.new({
@@ -51,11 +57,9 @@ export default function App() {
           action: () => invoke("open_settings"),
         }),
         await PredefinedMenuItem.new({ item: "Separator" }),
-        await CheckMenuItem.new({
-          text: "Hide the Windows taskbar",
-          checked: hiding,
-          action: () => updateSettings({ taskbar_mode: hiding ? "leave" : "hide" }).catch(console.error),
-        }),
+        await modeItem("hide", "Windows taskbar: auto-hide"),
+        await modeItem("complete", "Windows taskbar: hide completely"),
+        await modeItem("leave", "Windows taskbar: don't hide"),
         await PredefinedMenuItem.new({ item: "Separator" }),
         await MenuItem.new({
           text: edge === "bottom" ? "Move dock to top" : "Move dock to bottom",

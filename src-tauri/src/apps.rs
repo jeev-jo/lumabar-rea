@@ -44,13 +44,13 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
     PostMessageW, RegisterShellHookWindow, RegisterWindowMessageW, SetForegroundWindow,
     ShowWindow, EVENT_OBJECT_CLOAKED, EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY,
-    EVENT_OBJECT_HIDE, EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_UNCLOAKED,
+    EVENT_OBJECT_HIDE, EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_SHOW, EVENT_OBJECT_UNCLOAKED,
     EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GA_PARENT,
     GWL_EXSTYLE, GW_OWNER, OBJID_WINDOW, SW_MINIMIZE, SW_RESTORE, SW_SHOWNORMAL,
     WINEVENT_OUTOFCONTEXT, WM_CLOSE, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
 };
 
-use crate::settings;
+use crate::{settings, taskbar};
 
 const SUBCLASS_ID: usize = 0x4C41_4222;
 const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
@@ -758,6 +758,10 @@ unsafe extern "system" fn win_event(
 ) {
     if id_object != OBJID_WINDOW.0 || id_child != 0 || hwnd.is_invalid() {
         return;
+    }
+    if event == EVENT_OBJECT_SHOW {
+        // In "hide completely" mode, Explorer re-showing its taskbar is undone at once.
+        taskbar::on_taskbar_shown(hwnd);
     }
     let h = hwnd.0 as isize;
     let known = with_set(&KNOWN, |k| k.contains(&h));

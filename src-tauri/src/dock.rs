@@ -204,6 +204,7 @@ unsafe extern "system" fn subclass_proc(
     if state.taskbar_created_msg != 0 && msg == state.taskbar_created_msg {
         // Explorer restarted and forgot every AppBar: register and place again.
         log("[dock] taskbar recreated - re-registering");
+        taskbar::on_taskbar_recreated();
         STATE.lock().unwrap().registered = false;
         register();
         apply_position();

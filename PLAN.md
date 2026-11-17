@@ -121,7 +121,7 @@ Hiding someone's taskbar is the one thing here that can leave a PC in a bad stat
 1. Before changing anything, write the taskbar's original state to disk.
 2. Restore it on normal exit, on panic, and on Windows session end.
 3. On every launch, if a leftover state file exists, restore first, then proceed.
-4. Only ever use the documented auto-hide switch. Never hide `Shell_TrayWnd` with `ShowWindow`, never kill Explorer.
+4. Default to the documented auto-hide switch. "Hide completely" (hiding `Shell_TrayWnd` and every `Shell_SecondaryTrayWnd` with `ShowWindow`) is opt-in only: it is verified after every attempt, re-applied when Explorer re-shows or recreates the taskbar, and falls back to auto-hide if Windows won't keep it hidden. Restoring always shows the taskbar windows again. Never kill or patch Explorer.
 5. A global "panic" hotkey that quits the dock and restores the taskbar.
 
 ## 6. Open decisions (my defaults in bold)
