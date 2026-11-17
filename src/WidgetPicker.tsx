@@ -1,18 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettings } from "./settings";
 import { byKind, GROUPS, SIZE_LABEL, WIDGETS, type WidgetKind } from "./widgets/registry";
-import { sideOf, type WidgetInstance, type WidgetSide, type WidgetSize } from "./widgets/shared";
+import type { WidgetInstance, WidgetSide, WidgetSize } from "./widgets/shared";
 import "./widgets/widgets.css";
 import "./settings-page.css";
 import "./picker.css";
 
-type Category = "all" | "dock" | (typeof GROUPS)[number];
+type Category = "all" | (typeof GROUPS)[number];
 
 // Segoe Fluent Icons glyphs for the sidebar.
 const GLYPH: Record<Category, string> = {
   all: "",
-  dock: "",
   AI: "",
   Clocks: "",
   Productivity: "",
@@ -22,7 +21,6 @@ const GLYPH: Record<Category, string> = {
 
 const TITLE: Record<Category, string> = {
   all: "All widgets",
-  dock: "In your dock",
   AI: "AI",
   Clocks: "Clocks",
   Productivity: "Productivity",
@@ -49,169 +47,6 @@ function Sizes({ kind, value, onChange }: { kind: WidgetKind; value: WidgetSize;
           {SIZE_LABEL[s][0]}
         </button>
       ))}
-    </div>
-  );
-}
-
-/**
- * The widgets in the dock as live tiles, in two zones: left and right of the
- * app icons. Click a tile to edit it; drag it within a zone or across to the
- * other side.
- */
-function DockStrip({ widgets, selected, onSelect }: { widgets: WidgetInstance[]; selected: string | null; onSelect: (id: string | null) => void }) {
-  const dragged = useRef<string | null>(null);
-  const [over, setOver] = useState<string | null>(null);
-  const sel = widgets.find((w) => w.id === selected);
-  const selKind = sel && byKind(sel.kind);
-  const zone = (side: WidgetSide) => widgets.filter((w) => sideOf(w) === side);
-
-  /** Put `id` on `side`, just before `beforeId` (or at the end of that side). */
-  const place = (id: string, side: WidgetSide, beforeId?: string) => {
-    const moving = widgets.find((w) => w.id === id);
-    if (!moving) return;
-    const rest = widgets.filter((w) => w.id !== id);
-    const order = [...rest.filter((w) => sideOf(w) === "left"), ...rest.filter((w) => sideOf(w) === "right")].map((w) => w.id);
-    let at: number;
-    if (beforeId && beforeId !== id) {
-      at = order.indexOf(beforeId);
-    } else {
-      // End of the chosen side.
-      const lastOfSide = [...rest].reverse().find((w) => sideOf(w) === side);
-      at = lastOfSide ? order.indexOf(lastOfSide.id) + 1 : side === "left" ? 0 : order.length;
-    }
-    order.splice(at, 0, id);
-    if (sideOf(moving) !== side) invoke("widget_update", { id, side });
-    invoke("widgets_reorder", { ids: order });
-  };
-
-  const move = (d: number) => {
-    if (!sel) return;
-    const list = zone(sideOf(sel));
-    const i = list.indexOf(sel);
-    const j = i + d;
-    if (j < 0 || j >= list.length) return;
-    // Moving right = placing it before the item after its neighbour.
-    place(sel.id, sideOf(sel), d < 0 ? list[j].id : list[j + 1]?.id);
-  };
-
-  const zoneView = (side: WidgetSide) => {
-    const list = zone(side);
-    return (
-      <div
-        key={side}
-        className={`pz${over === `zone-${side}` ? " over" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (!over || over.startsWith("zone")) setOver(`zone-${side}`);
-        }}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(null);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setOver(null);
-          const from = dragged.current;
-          dragged.current = null;
-          if (from) place(from, side);
-        }}
-      >
-        <div className="pz-label">
-          <span className="glyph">{side === "left" ? "\uE76B" : "\uE76C"}</span>
-          {side === "left" ? "Left of your apps" : "Right of your apps"}
-        </div>
-        <div className="strip-tiles">
-          {list.length === 0 && <div className="pz-empty">Drop a widget here</div>}
-          {list.map((w) => (
-            <div
-              key={w.id}
-              className={`strip-item${selected === w.id ? " selected" : ""}${over === w.id ? " over" : ""}`}
-              draggable
-              onClick={() => onSelect(selected === w.id ? null : w.id)}
-              onDragStart={(e) => {
-                dragged.current = w.id;
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", w.id);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOver(w.id);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOver(null);
-                const from = dragged.current;
-                dragged.current = null;
-                if (from && from !== w.id) place(from, side, w.id);
-              }}
-              title={`${byKind(w.kind)?.name ?? w.kind} — click to edit, drag to move`}
-            >
-              <Tile instance={w} />
-              <button
-                className="remove-badge"
-                title="Remove from dock"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (selected === w.id) onSelect(null);
-                  invoke("widgets_remove", { id: w.id });
-                }}
-              >
-                {"\uE738"}
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  if (!widgets.length) {
-    return <div className="strip-empty">Nothing in the dock yet. Add a widget below and it appears in the dock straight away.</div>;
-  }
-  const selList = sel ? zone(sideOf(sel)) : [];
-  const selIndex = sel ? selList.indexOf(sel) : -1;
-  return (
-    <div className="dock-strip">
-      <div className="pz-row">
-        {zoneView("left")}
-        <div className="pz-apps" title="Your app icons sit here">
-          <span className="glyph">{"\uE8A9"}</span>
-          Apps
-        </div>
-        {zoneView("right")}
-      </div>
-      {sel && selKind && (
-        <div className="strip-toolbar">
-          <b>{selKind.name}</b>
-          <Sizes kind={selKind} value={sel.size} onChange={(size) => invoke("widget_update", { id: sel.id, size })} />
-          <span className="sep" />
-          <div className="chips wide" role="radiogroup" aria-label="Side">
-            {(["left", "right"] as WidgetSide[]).map((side) => (
-              <button key={side} role="radio" aria-checked={sideOf(sel) === side} className={sideOf(sel) === side ? "on" : ""} onClick={() => place(sel.id, side)}>
-                {side === "left" ? "Left" : "Right"}
-              </button>
-            ))}
-          </div>
-          <span className="sep" />
-          <button className="icon" title="Move left" disabled={selIndex <= 0} onClick={() => move(-1)}>
-            {"\uE76B"}
-          </button>
-          <button className="icon" title="Move right" disabled={selIndex === selList.length - 1} onClick={() => move(1)}>
-            {"\uE76C"}
-          </button>
-          <span className="sep" />
-          <button
-            className="danger"
-            onClick={() => {
-              onSelect(null);
-              invoke("widgets_remove", { id: sel.id });
-            }}
-          >
-            Remove
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -256,7 +91,6 @@ export default function WidgetPicker() {
   const settings = useSettings();
   const [cat, setCat] = useState<Category>("all");
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
   const [addSide, setAddSide] = useState<WidgetSide>("right");
 
   useEffect(() => {
@@ -272,14 +106,13 @@ export default function WidgetPicker() {
   if (!settings) return null;
   const inDock = settings.widgets;
   const countIn = (kind: string) => inDock.filter((w) => w.kind === kind).length;
-  const groupsShown = (cat === "all" || cat === "dock" ? GROUPS : GROUPS.filter((g) => g === cat)).filter((g) =>
+  const groupsShown = (cat === "all" ? GROUPS : GROUPS.filter((g) => g === cat)).filter((g) =>
     matches.some((k) => k.group === g),
   );
   const shownCount = groupsShown.reduce((n, g) => n + matches.filter((k) => k.group === g).length, 0);
 
-  const nav: Category[] = ["all", "dock", ...GROUPS];
-  const navCount = (c: Category) =>
-    c === "all" ? WIDGETS.length : c === "dock" ? inDock.length : WIDGETS.filter((k) => k.group === c).length;
+  const nav: Category[] = ["all", ...GROUPS];
+  const navCount = (c: Category) => (c === "all" ? WIDGETS.length : WIDGETS.filter((k) => k.group === c).length);
 
   return (
     <div className="picker2">
@@ -291,7 +124,6 @@ export default function WidgetPicker() {
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
-              if (cat === "dock") setCat("all");
             }}
           />
         </label>
@@ -309,7 +141,7 @@ export default function WidgetPicker() {
       <main>
         <header>
           <h1>{query ? `Results for “${q.trim()}”` : TITLE[cat]}</h1>
-          {cat !== "dock" && <span className="pill">{shownCount}</span>}
+          <span className="pill">{shownCount}</span>
           <span className="sub">{inDock.length} in dock</span>
           <span className="spacer" />
           <span className="sub">Add new widgets to the</span>
@@ -322,15 +154,19 @@ export default function WidgetPicker() {
           </div>
         </header>
 
-        {(cat === "all" || cat === "dock") && !query && (
-          <section>
-            {cat === "all" && <h2>In your dock</h2>}
-            <DockStrip widgets={inDock} selected={selected} onSelect={setSelected} />
-          </section>
-        )}
+        <div className="edit-banner">
+          <span className="glyph">{""}</span>
+          <div>
+            <b>Arrange right on the dock</b>
+            <span>
+              While this window is open, drag widgets on the dock to reorder them, or across the apps to switch sides. Click
+              the red badge to remove one; right-click a widget for its size.
+            </span>
+          </div>
+          <button onClick={() => invoke("close_widget_picker")}>Done</button>
+        </div>
 
-        {cat !== "dock" &&
-          groupsShown.map((g) => (
+        {groupsShown.map((g) => (
             <section key={g}>
               {(cat === "all" || query) && (
                 <h2>
@@ -347,7 +183,7 @@ export default function WidgetPicker() {
             </section>
           ))}
 
-        {cat !== "dock" && shownCount === 0 && <p className="none">No widgets match “{q.trim()}”.</p>}
+        {shownCount === 0 && <p className="none">No widgets match “{q.trim()}”.</p>}
       </main>
     </div>
   );

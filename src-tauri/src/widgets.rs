@@ -258,12 +258,40 @@ pub fn popover_hide(app: AppHandle) {
 // Picker
 // ---------------------------------------------------------------------------
 
+/// The dock is in edit mode (drag to arrange, badges to remove) while the
+/// picker window is open.
+static EDITING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn set_editing(app: &AppHandle, on: bool) {
+    EDITING.store(on, std::sync::atomic::Ordering::SeqCst);
+    let _ = app.emit("edit-mode", on);
+}
+
 pub fn open_picker(app: &AppHandle) {
     if let Some(w) = app.get_webview_window(PICKER) {
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
+        set_editing(app, true);
     }
+}
+
+/// Called when the picker window is closed (it is only hidden).
+pub fn picker_closed(app: &AppHandle) {
+    set_editing(app, false);
+}
+
+#[tauri::command]
+pub fn widgets_edit_mode() -> bool {
+    EDITING.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+#[tauri::command]
+pub fn close_widget_picker(app: AppHandle) {
+    if let Some(w) = app.get_webview_window(PICKER) {
+        let _ = w.hide();
+    }
+    picker_closed(&app);
 }
 
 #[tauri::command]

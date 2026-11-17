@@ -6,6 +6,7 @@ import { Clock, StartButton, SystemStrip, useSystemStatus } from "./system";
 import { type Edge, updateSettings, useSettings } from "./settings";
 import { DockWidgets } from "./widgets/DockWidgets";
 import { sideOf } from "./widgets/shared";
+import { useEditMode } from "./widgets/arrange";
 import "./widgets/widgets.css";
 import "./App.css";
 
@@ -21,8 +22,10 @@ function useClock() {
 export default function App() {
   const settings = useSettings();
   const edge: Edge = settings?.edge ?? "bottom";
-  const leftWidgets = (settings?.widgets ?? []).filter((w) => sideOf(w) === "left");
-  const rightWidgets = (settings?.widgets ?? []).filter((w) => sideOf(w) === "right");
+  const allWidgets = settings?.widgets ?? [];
+  const leftWidgets = allWidgets.filter((w) => sideOf(w) === "left");
+  const rightWidgets = allWidgets.filter((w) => sideOf(w) === "right");
+  const editing = useEditMode();
   const [dragging, setDragging] = useState(false);
   const dragStartY = useRef<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -119,20 +122,19 @@ export default function App() {
     <div className={`strip edge-${edge}`} onContextMenu={onContextMenu}>
       <div
         ref={barRef}
-        className={`bar${dragging ? " dragging" : ""}`}
+        className={`bar${dragging ? " dragging" : ""}${editing ? " editing" : ""}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        <StartButton />
-        <span className="divider" />
-        {leftWidgets.length > 0 && (
+        {(leftWidgets.length > 0 || editing) && (
           <>
-            <DockWidgets widgets={leftWidgets} />
+            <DockWidgets widgets={leftWidgets} all={allWidgets} side="left" edit={editing} />
             <span className="divider" />
           </>
         )}
+        <StartButton />
         <div className="apps">
           {apps.length === 0 && <span className="brand">luma</span>}
           {apps.map((app) => (
@@ -144,10 +146,10 @@ export default function App() {
             />
           ))}
         </div>
-        {rightWidgets.length > 0 && (
+        {(rightWidgets.length > 0 || editing) && (
           <>
             <span className="divider" />
-            <DockWidgets widgets={rightWidgets} />
+            <DockWidgets widgets={rightWidgets} all={allWidgets} side="right" edit={editing} />
           </>
         )}
         <span className="divider" />

@@ -1,4 +1,4 @@
-/* Widget picker: sidebar of categories, live preview cards, and the dock strip. */
+/* Widget picker: sidebar of categories, live preview cards, and the arrange banner. */
 
 html.picker-page,
 html.picker-page body,
@@ -161,126 +161,6 @@ html.picker-page #root {
   color: var(--accent);
 }
 
-/* ---- dock strip ---- */
-
-.dock-strip,
-.strip-empty {
-  padding: 12px;
-  border-radius: 14px;
-  background: var(--bar-bg);
-  border: 1px solid var(--border);
-  box-shadow: var(--highlight);
-}
-
-.strip-empty {
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-.strip-tiles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  --btn: 42px;
-}
-
-.strip-item {
-  position: relative;
-  border-radius: 12px;
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-  cursor: grab;
-}
-
-.strip-item .widget {
-  pointer-events: none;
-}
-
-.strip-item:hover .widget {
-  background: var(--active);
-}
-
-.strip-item.selected {
-  outline-color: var(--accent);
-}
-
-.strip-item.over {
-  outline: 2px dashed var(--accent);
-}
-
-.remove-badge {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 2px solid var(--page-bg);
-  border-radius: 50%;
-  background: var(--critical);
-  color: #fff;
-  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
-  font-size: 8px;
-  opacity: 0;
-  transition: opacity 120ms;
-  cursor: default;
-}
-
-.strip-item:hover .remove-badge,
-.strip-item.selected .remove-badge,
-.remove-badge:focus-visible {
-  opacity: 1;
-}
-
-.strip-toolbar {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-}
-
-.strip-toolbar .sep {
-  width: 1px;
-  height: 20px;
-  background: var(--divider);
-}
-
-.strip-toolbar button,
-.pcard-actions .add {
-  font: inherit;
-  color: inherit;
-  border: 1px solid var(--border);
-  background: var(--hover);
-  border-radius: 8px;
-  padding: 5px 12px;
-  cursor: default;
-}
-
-.strip-toolbar button:hover:not(:disabled) {
-  background: var(--active);
-}
-
-.strip-toolbar button:disabled {
-  opacity: 0.35;
-}
-
-.strip-toolbar .icon {
-  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
-  font-size: 11px;
-  padding: 5px 9px;
-}
-
-.strip-toolbar .danger:hover {
-  background: var(--critical);
-  border-color: var(--critical);
-  color: #fff;
-}
-
 /* ---- size chips ---- */
 
 .chips {
@@ -415,7 +295,7 @@ html.picker-page .picker2 header {
   margin-bottom: 14px;
 }
 
-/* ---- left / right zones ---- */
+/* ---- header controls ---- */
 
 .picker2 header .spacer {
   flex: 1;
@@ -426,62 +306,45 @@ html.picker-page .picker2 header {
   padding: 0 10px;
 }
 
-.pz-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 10px;
-  align-items: stretch;
-}
+/* ---- arrange-on-the-dock banner ---- */
 
-.pz {
-  min-width: 0;
-  padding: 8px 10px 10px;
-  border-radius: 12px;
-  border: 1px dashed var(--border);
-  transition: border-color 120ms, background 120ms;
-}
-
-.pz.over {
-  border-color: var(--accent);
-  background: var(--hover);
-}
-
-.pz-label {
+.edit-banner {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  font-size: 11px;
-  opacity: 0.7;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--bar-bg);
+  border: 1.5px dashed var(--accent);
+  box-shadow: var(--highlight);
 }
 
-.pz-label .glyph {
-  font-size: 9px;
+.edit-banner > .glyph {
+  font-size: 22px;
+  color: var(--accent);
 }
 
-.pz-empty {
-  height: 42px;
-  display: grid;
-  place-items: center;
+.edit-banner div {
   flex: 1;
-  font-size: 11px;
-  opacity: 0.55;
-}
-
-.pz-apps {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 4px;
-  font-size: 11px;
-  opacity: 0.6;
-  border-radius: 10px;
-  background: var(--hover);
+  flex-direction: column;
+  gap: 2px;
 }
 
-.pz-apps .glyph {
-  transform: rotate(90deg);
+.edit-banner span {
+  font-size: 12px;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+
+.edit-banner button {
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 18px;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: default;
 }

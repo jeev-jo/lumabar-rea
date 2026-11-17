@@ -757,3 +757,71 @@ html.popover-page #root {
 .w-worldclock .zone {
   flex: 1 1 0;
 }
+
+/* ---- edit mode (while the Widgets window is open) ---- */
+
+.bar.editing {
+  outline: 1.5px dashed var(--accent);
+  outline-offset: -3px;
+}
+
+.widgets.editing .widget {
+  position: relative;
+  cursor: grab;
+  animation: jiggle 260ms ease-in-out infinite alternate;
+}
+
+.widgets.editing .widget:nth-child(2n) {
+  animation-delay: -130ms;
+}
+
+@keyframes jiggle {
+  from {
+    transform: rotate(-0.6deg);
+  }
+  to {
+    transform: rotate(0.6deg);
+  }
+}
+
+.widgets.editing .widget > div {
+  pointer-events: none;
+}
+
+/* Where a dragged tile will land: before this one, or at the end of the group. */
+.widget.drop-before {
+  box-shadow: -3px 0 0 var(--accent), var(--highlight);
+}
+
+.widgets.drop-end {
+  box-shadow: 3px 0 0 var(--accent);
+  border-radius: 4px;
+}
+
+.w-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--critical);
+  color: #fff;
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 8px;
+  pointer-events: auto;
+  cursor: default;
+}
+
+.drop-slot {
+  width: 84px;
+  height: var(--btn);
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--accent);
+  border-radius: 11px;
+  font-size: 11px;
+  opacity: 0.8;
+}

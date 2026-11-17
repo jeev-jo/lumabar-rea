@@ -1,7 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { byKind, SIZE_LABEL } from "./registry";
-import { sideOf, type WidgetInstance } from "./shared";
+import { useState } from "react";
+import { placeWidget } from "./arrange";
+import { sideOf, type WidgetInstance, type WidgetSide } from "./shared";
 
 async function widgetMenu(w: WidgetInstance) {
   const kind = byKind(w.kind);
@@ -29,11 +31,52 @@ async function widgetMenu(w: WidgetInstance) {
   await (await Menu.new({ items })).popup();
 }
 
-/** The widgets area of the dock: one tile per widget; click opens its expanded view. */
-export function DockWidgets({ widgets }: { widgets: WidgetInstance[] }) {
-  if (!widgets.length) return null;
+// Shared across both sides' groups, so a tile can be dragged from one to the other.
+let draggedId: string | null = null;
+
+/**
+ * One side's widget group in the dock. Normally a click opens a widget's
+ * expanded view. In edit mode (while the Widgets window is open) the tiles can
+ * be dragged — within the side or across the apps to the other side — and each
+ * has a remove badge.
+ */
+export function DockWidgets({
+  widgets,
+  all,
+  side,
+  edit,
+}: {
+  widgets: WidgetInstance[];
+  all: WidgetInstance[];
+  side: WidgetSide;
+  edit: boolean;
+}) {
+  const [over, setOver] = useState<string | null>(null);
+  if (!widgets.length && !edit) return null;
+
+  const drop = (beforeId?: string) => {
+    const id = draggedId;
+    draggedId = null;
+    setOver(null);
+    if (id && id !== beforeId) placeWidget(all, id, side, beforeId);
+  };
+
   return (
-    <div className="widgets">
+    <div
+      className={`widgets${edit ? " editing" : ""}${over === "end" ? " drop-end" : ""}`}
+      onDragOver={(e) => {
+        if (!edit) return;
+        e.preventDefault();
+        if (!over) setOver("end");
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(null);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        drop();
+      }}
+    >
       {widgets.map((w) => {
         const kind = byKind(w.kind);
         if (!kind) return null;
@@ -41,8 +84,11 @@ export function DockWidgets({ widgets }: { widgets: WidgetInstance[] }) {
         return (
           <button
             key={w.id}
-            className={`widget size-${w.size}`}
+            className={`widget size-${w.size}${over === w.id ? " drop-before" : ""}`}
+            draggable={edit}
+            title={edit ? `${kind.name} — drag to move, across the apps to switch sides` : undefined}
             onClick={(e) => {
+              if (edit) return;
               const r = e.currentTarget.getBoundingClientRect();
               invoke("popover_toggle", {
                 id: w.id,
@@ -56,11 +102,45 @@ export function DockWidgets({ widgets }: { widgets: WidgetInstance[] }) {
               e.stopPropagation();
               widgetMenu(w).catch(console.error);
             }}
+            onDragStart={(e) => {
+              draggedId = w.id;
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", w.id);
+            }}
+            onDragEnd={() => {
+              draggedId = null;
+              setOver(null);
+            }}
+            onDragOver={(e) => {
+              if (!edit) return;
+              e.preventDefault();
+              e.stopPropagation();
+              setOver(w.id);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              drop(w.id);
+            }}
           >
             <Tile instance={w} />
+            {edit && (
+              <span
+                className="w-remove"
+                role="button"
+                title={`Remove ${kind.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  invoke("widgets_remove", { id: w.id });
+                }}
+              >
+                {""}
+              </span>
+            )}
           </button>
         );
       })}
+      {edit && widgets.length === 0 && <div className="drop-slot">Drop here</div>}
     </div>
   );
 }

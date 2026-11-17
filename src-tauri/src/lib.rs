@@ -58,6 +58,9 @@ pub fn run() {
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();
+                    if window.label() == widgets::PICKER {
+                        widgets::picker_closed(window.app_handle());
+                    }
                 }
             }
         })
@@ -217,6 +220,8 @@ pub fn run() {
             widgets::popover_toggle,
             widgets::popover_hide,
             widgets::open_widget_picker,
+            widgets::close_widget_picker,
+            widgets::widgets_edit_mode,
             ai_usage::ai_key_status,
             ai_usage::ai_set_key,
             ai_usage::ai_clear_key,
