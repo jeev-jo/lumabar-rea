@@ -4,6 +4,8 @@ import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/a
 import { AppButton, useApps } from "./apps";
 import { Clock, StartButton, SystemStrip, useSystemStatus } from "./system";
 import { type Edge, updateSettings, useSettings } from "./settings";
+import { DockWidgets } from "./widgets/DockWidgets";
+import "./widgets/widgets.css";
 import "./App.css";
 
 function useClock() {
@@ -52,6 +54,10 @@ export default function App() {
       });
     const menu = await Menu.new({
       items: [
+        await MenuItem.new({
+          text: "Widgets…",
+          action: () => invoke("open_widget_picker"),
+        }),
         await MenuItem.new({
           text: "Settings…",
           action: () => invoke("open_settings"),
@@ -116,6 +122,12 @@ export default function App() {
             />
           ))}
         </div>
+        {settings && settings.widgets.length > 0 && (
+          <>
+            <span className="divider" />
+            <DockWidgets widgets={settings.widgets} />
+          </>
+        )}
         <span className="divider" />
         <SystemStrip status={status} />
         <Clock now={now} />

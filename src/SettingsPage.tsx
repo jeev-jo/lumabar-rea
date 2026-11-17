@@ -144,6 +144,15 @@ export default function SettingsPage() {
       </section>
 
       <section>
+        <h2>Widgets</h2>
+        <Row title="Add, remove and arrange widgets" hint={`${settings.widgets.length} in the dock`}>
+          <button className="action" onClick={() => invoke("open_widget_picker")}>
+            Open widgets
+          </button>
+        </Row>
+      </section>
+
+      <section>
         <h2>Pinned apps</h2>
         <Row title="Re-import pins" hint="Replaces the dock's pins with the apps pinned to the Windows taskbar.">
           <button

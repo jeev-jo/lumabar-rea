@@ -1,0 +1,660 @@
+/* ---- tiles in the dock ------------------------------------------------- */
+
+.widgets {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.widget {
+  height: var(--btn);
+  box-sizing: border-box;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  border: 0;
+  border-radius: 11px;
+  background: var(--hover);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  overflow: hidden;
+  transition: background 120ms;
+}
+
+.widget:hover {
+  background: var(--active);
+}
+
+.widget.size-s {
+  width: 72px;
+  justify-content: center;
+}
+
+.widget.size-m {
+  width: 128px;
+}
+
+.widget.size-l {
+  width: 184px;
+}
+
+.widget > div {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.widget .label,
+.widget small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.widget b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.first,
+.where b {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sparkline {
+  display: block;
+  width: 100%;
+  height: 14px;
+}
+
+/* system */
+.w-system.s {
+  flex-direction: column;
+  gap: 0 !important;
+  line-height: 1.15;
+}
+
+.w-system .metric {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.w-system .metric .label b {
+  font-size: 11px;
+}
+
+/* weather */
+.w-weather .icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.w-weather .temp {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.w-weather .where {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.w-weather .where b {
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.w-weather.empty,
+.w-weather.empty + * {
+  font-size: 11px;
+  opacity: 0.75;
+  justify-content: center;
+}
+
+/* to-do, notes */
+.w-todo .check {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.w-todo .first,
+.w-notes .first {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.w-notes .glyph {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 15px;
+}
+
+/* pomodoro */
+.ring .track {
+  fill: none;
+  stroke: var(--divider);
+  stroke-width: 2.5;
+}
+
+.ring .fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 500ms linear;
+}
+
+.ring.break .fill {
+  stroke: var(--series-3);
+}
+
+.w-pomodoro b {
+  font-size: 14px;
+}
+
+.w-pomodoro:not(.running) b {
+  opacity: 0.75;
+}
+
+.w-pomodoro .phase {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* world clock */
+.w-worldclock {
+  justify-content: space-between;
+}
+
+.w-worldclock .zone {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.w-worldclock .zone small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- popover (expanded views) ----------------------------------------- */
+
+html.popover-page,
+html.popover-page body,
+html.popover-page #root {
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.popover {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  overflow: auto;
+  user-select: text;
+}
+
+.panel h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.panel h3 .now {
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel input,
+.panel textarea,
+.panel select {
+  font: inherit;
+  color: inherit;
+  background: var(--hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 9px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.panel input:focus,
+.panel textarea:focus,
+.panel select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.panel button {
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--border);
+  background: var(--hover);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: default;
+}
+
+.panel button:hover {
+  background: var(--active);
+}
+
+.panel button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.panel button.link {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--accent);
+}
+
+.panel ul {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+
+.panel .remove {
+  border: 0 !important;
+  background: none !important;
+  padding: 0 6px !important;
+  opacity: 0.5;
+  font-size: 16px;
+}
+
+.panel .remove:hover {
+  opacity: 1;
+}
+
+.fine {
+  font-size: 11px;
+  opacity: 0.6;
+  margin: 8px 0 0;
+}
+
+.error {
+  color: var(--critical);
+  font-size: 12px;
+}
+
+/* system panel charts */
+.w-system-panel h3 {
+  margin-top: 10px;
+}
+
+.w-system-panel h3:first-child {
+  margin-top: 0;
+}
+
+.chart {
+  position: relative;
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart .grid {
+  stroke: var(--divider);
+  stroke-width: 1;
+}
+
+.chart .axis {
+  fill: var(--fg);
+  opacity: 0.6;
+  font-size: 9px;
+}
+
+.chart .crosshair {
+  stroke: var(--fg);
+  opacity: 0.35;
+  stroke-width: 1;
+}
+
+.chart .dot {
+  stroke: var(--panel-bg);
+  stroke-width: 2;
+}
+
+.chart .legend {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.chart .legend span,
+.chart .tooltip .val {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chart .legend i,
+.chart .tooltip i {
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.chart .tooltip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.chart .tooltip .when {
+  opacity: 0.65;
+}
+
+/* weather panel */
+.place-picker ul li button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 6px 4px;
+}
+
+.current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+
+.current .icon {
+  font-size: 34px;
+}
+
+.current .temp {
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-radius: 8px;
+  background: var(--hover);
+  font-size: 12px;
+}
+
+.day .icon {
+  font-size: 18px;
+}
+
+.day small {
+  opacity: 0.65;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+/* to-do panel */
+.w-todo-panel .items li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.w-todo-panel .items label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.w-todo-panel .items input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.w-todo-panel .items li.done span {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+/* notes panel */
+.w-notes-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.w-notes-panel textarea {
+  flex: 1;
+  resize: none;
+  line-height: 1.5;
+}
+
+/* pomodoro panel */
+.w-pomodoro-panel .big {
+  font-size: 46px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  margin: 6px 0 10px;
+}
+
+.w-pomodoro-panel .buttons,
+.w-pomodoro-panel .lengths {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.w-pomodoro-panel .lengths {
+  margin-top: 14px;
+}
+
+.w-pomodoro-panel .lengths label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.w-pomodoro-panel .lengths select {
+  width: auto;
+}
+
+/* world clock panel */
+.zones li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.zones .name {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.zones .name small {
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.zones .t {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.results li button {
+  width: 100%;
+  text-align: left;
+  border: 0 !important;
+  background: none !important;
+  padding: 5px 2px !important;
+}
+
+/* ---- widget picker ---------------------------------------------------- */
+
+.picker {
+  max-width: 900px !important;
+}
+
+.in-dock {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.in-dock li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.in-dock li.over {
+  outline: 2px dashed var(--accent);
+}
+
+.in-dock .grip {
+  cursor: grab;
+  opacity: 0.5;
+  letter-spacing: -2px;
+}
+
+.in-dock .name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.in-dock .order button {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 12px;
+  color: inherit;
+  border: 0;
+  background: transparent;
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+
+.in-dock .order button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.in-dock .order button:disabled {
+  opacity: 0.3;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 10px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.tile-preview {
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  --btn: 42px;
+}
+
+.card .meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card .meta span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.add-row .action {
+  flex: none;
+  padding: 6px 16px;
+}
+
+.action.primary {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--on-accent) !important;
+  min-width: 0 !important;
+}

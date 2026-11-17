@@ -18,6 +18,7 @@ use windows::Win32::System::Registry::{
 use windows::Win32::UI::WindowsAndMessaging::MONITORINFOF_PRIMARY;
 
 use crate::apps::{self, Pin};
+use crate::widgets::WidgetInstance;
 use crate::dock::{self, Edge};
 use crate::taskbar;
 
@@ -70,6 +71,8 @@ pub struct Settings {
     pub display: Option<String>,
     /// `None` until first run, when it is seeded from the Windows taskbar's pins.
     pub pins: Option<Vec<Pin>>,
+    /// Widgets in the dock, in order.
+    pub widgets: Vec<WidgetInstance>,
 }
 
 impl Default for Settings {
@@ -81,6 +84,7 @@ impl Default for Settings {
             theme: Theme::System,
             display: None,
             pins: None,
+            widgets: Vec::new(),
         }
     }
 }

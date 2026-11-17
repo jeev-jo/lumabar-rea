@@ -35,7 +35,13 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 pub const WATCHDOG_FLAG: &str = "--taskbar-watchdog";
+/// Starts the watchdog and exits at once, so the watchdog is an orphan that
+/// "end process tree" or a dev-server restart of the dock cannot reach.
+pub const WATCHDOG_LAUNCH_FLAG: &str = "--taskbar-watchdog-launch";
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+const DETACHED_PROCESS: u32 = 0x0000_0008;
+const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
 
 #[derive(Serialize, Deserialize)]
 struct SavedState {
@@ -251,20 +257,36 @@ pub fn install_panic_hook() {
     }));
 }
 
-/// Start a copy of this exe that waits for the dock to exit and then restores the
-/// taskbar. Covers the cases no in-process handler can: the dock being killed or
-/// crashing hard.
-pub fn spawn_watchdog() {
-    let exe = match std::env::current_exe() {
-        Ok(p) => p,
-        Err(e) => return eprintln!("[taskbar] no watchdog: {e}"),
+/// Start a detached copy of this exe with `flag <pid>`. Tries to leave any job
+/// object too (so a job that kills its members on close can't take it down).
+fn spawn_detached(flag: &str, pid: u32) -> std::io::Result<()> {
+    let exe = std::env::current_exe()?;
+    let base = CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP;
+    let run = |flags: u32| {
+        Command::new(&exe)
+            .arg(flag)
+            .arg(pid.to_string())
+            .creation_flags(flags)
+            .spawn()
+            .map(|_| ())
     };
-    let result = Command::new(exe)
-        .arg(WATCHDOG_FLAG)
-        .arg(std::process::id().to_string())
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn();
-    if let Err(e) = result {
+    // Breaking away is refused when the job does not allow it; then stay in it.
+    run(base | CREATE_BREAKAWAY_FROM_JOB).or_else(|_| run(base))
+}
+
+/// Start the watchdog: a copy of this exe that waits for the dock to exit and then
+/// restores the taskbar. Covers the cases no in-process handler can: the dock
+/// being killed (even with its whole process tree) or crashing hard.
+pub fn spawn_watchdog() {
+    if let Err(e) = spawn_detached(WATCHDOG_LAUNCH_FLAG, std::process::id()) {
+        eprintln!("[taskbar] no watchdog: {e}");
+    }
+}
+
+/// Entry point for `--taskbar-watchdog-launch <pid>`: start the real watchdog and exit.
+pub fn launch_watchdog(pid: &str) {
+    let Ok(pid) = pid.parse::<u32>() else { return };
+    if let Err(e) = spawn_detached(WATCHDOG_FLAG, pid) {
         eprintln!("[taskbar] no watchdog: {e}");
     }
 }

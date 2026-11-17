@@ -57,6 +57,37 @@
         "center": true,
         "visible": false,
         "resizable": true
+      },
+      {
+        "label": "popover",
+        "title": "luma-ai-bar widget",
+        "width": 320,
+        "height": 300,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false,
+        "visible": false,
+        "focus": true,
+        "dragDropEnabled": false,
+        "maximizable": false,
+        "minimizable": false,
+        "url": "index.html?view=popover"
+      },
+      {
+        "label": "widgets",
+        "title": "luma-ai-bar widgets",
+        "url": "index.html?view=widgets",
+        "width": 820,
+        "height": 680,
+        "minWidth": 560,
+        "minHeight": 480,
+        "center": true,
+        "visible": false,
+        "resizable": true,
+        "dragDropEnabled": false
       }
     ],
     "security": {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { WidgetInstance } from "./widgets/shared";
 import "./theme.css";
 
 export type Edge = "top" | "bottom";
@@ -14,9 +15,10 @@ export type Settings = {
   size: Size;
   theme: Theme;
   display: string | null;
+  widgets: WidgetInstance[];
 };
 
-export type Patch = Partial<Omit<Settings, "display">> & { display?: string };
+export type Patch = Partial<Omit<Settings, "display" | "widgets">> & { display?: string };
 
 export const updateSettings = (patch: Patch) => invoke<Settings>("update_settings", { patch });
 

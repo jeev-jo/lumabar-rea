@@ -5,7 +5,9 @@
   "windows": [
     "main",
     "preview",
-    "settings"
+    "settings",
+    "popover",
+    "widgets"
   ],
   "permissions": [
     "core:default"
