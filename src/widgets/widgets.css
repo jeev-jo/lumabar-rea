@@ -1448,3 +1448,49 @@ html.popover-page #root {
 .now-panel .artist {
   -webkit-line-clamp: 1;
 }
+
+/* Battery: a square tile with smaller type. */
+.widget.kind-battery.size-s {
+  width: var(--btn);
+  padding: 0;
+}
+
+.widget.kind-battery.size-s .w-battery {
+  gap: 1px !important;
+}
+
+.widget.kind-battery.size-s .w-battery b {
+  font-size: 13px;
+}
+
+.widget.kind-battery.size-s .w-battery > .glyph {
+  font-size: 9px;
+}
+
+/* Quick toggles: the gear that opens Quick Settings. */
+.w-toggles .tile-gear {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--hover);
+  color: inherit;
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 12px;
+  cursor: default;
+}
+
+.w-toggles .tile-gear:hover {
+  background: var(--active);
+}
+
+/* Two pills and the gear need a little more room than a standard tile. */
+.widget.kind-toggles.size-m {
+  width: 164px;
+}
+
+.widget.kind-toggles.size-l {
+  width: 196px;
+}

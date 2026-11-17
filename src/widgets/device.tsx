@@ -26,6 +26,8 @@ const G = {
 };
 
 const settingsPage = (page: string) => invoke("open_ms_settings", { page }).catch(console.error);
+/** The Quick Settings panel the Windows taskbar opens (Wi-Fi, Bluetooth, volume…). */
+const quickSettings = () => invoke("open_flyout", { which: "quick" }).catch(console.error);
 /** Controls inside a tile must not also open the tile's details. */
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -246,6 +248,17 @@ export function TogglesTile({ preview }: WidgetProps) {
     <div className="w-toggles">
       <RadioPill kind="wifi" on={s.wifi} preview={preview} />
       <RadioPill kind="bluetooth" on={s.bluetooth} preview={preview} />
+      <button
+        className="glyph tile-gear"
+        title="Quick Settings"
+        aria-label="Open Quick Settings"
+        onClick={(e) => {
+          stop(e);
+          if (!preview) quickSettings();
+        }}
+      >
+        {G.gear}
+      </button>
     </div>
   );
 }
@@ -263,9 +276,9 @@ export function TogglesPanel() {
         <RadioPill kind={kind} on={on} />
         <button
           className="glyph gear"
-          title={`${label} settings`}
-          aria-label={`Open ${label} settings`}
-          onClick={() => settingsPage(kind === "wifi" ? "network-wifi" : "bluetooth")}
+          title="Quick Settings"
+          aria-label="Open Quick Settings"
+          onClick={quickSettings}
         >
           {G.gear}
         </button>
@@ -276,7 +289,7 @@ export function TogglesPanel() {
       <h3>Quick toggles</h3>
       {row("wifi", "Wi-Fi", s?.wifi)}
       {row("bluetooth", "Bluetooth", s?.bluetooth)}
-      <p className="fine">Click to switch on or off. The arrow lists networks or devices; the gear opens the full settings.</p>
+      <p className="fine">Click to switch on or off. The arrow lists networks or devices; the gear opens Quick Settings.</p>
     </div>
   );
 }
