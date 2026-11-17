@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { updateConfig, useWidgetData, type WidgetProps } from "./shared";
 
-export type Provider = "anthropic" | "openai" | "deepseek" | "claude_code";
+export type Provider = "anthropic" | "openai" | "deepseek" | "claude_code" | "codex" | "openrouter" | "kimi";
 export type AiConfig = { provider?: Provider };
 
 type Meter = { label: string; percent: number; resets_at: string | null };
@@ -26,7 +26,10 @@ type Service = {
   /** Which site icon to show (see `service_icon` in Rust). */
   icon: string;
   keyHint?: string;
+  /** For services read from a local app instead of a key: where the figures come from. */
   source?: string;
+  /** Command that says whether that local app was found, and what to say if not. */
+  found?: [command: string, missing: string];
 };
 
 export const SERVICES: Record<Provider, Service> = {
@@ -36,6 +39,15 @@ export const SERVICES: Record<Provider, Service> = {
     name: "Claude plan limits",
     icon: "claude",
     source: "Read from your Claude Code sign-in on this PC. The sign-in is only read, never stored or shown.",
+    found: ["ai_claude_code_found", "No Claude Code sign-in was found. Sign in to Claude Code first."],
+  },
+  codex: {
+    id: "codex",
+    short: "ChatGPT",
+    name: "ChatGPT plan limits",
+    icon: "openai",
+    source: "Read from the limits Codex CLI records on this PC each time you use it, so they're as fresh as your last Codex turn. Nothing is sent anywhere.",
+    found: ["ai_codex_found", "No Codex CLI sessions were found. Use Codex signed in with ChatGPT first."],
   },
   anthropic: {
     id: "anthropic",
@@ -52,6 +64,20 @@ export const SERVICES: Record<Provider, Service> = {
     keyHint: "An OpenAI admin key, from the OpenAI platform's organization settings.",
   },
   deepseek: { id: "deepseek", short: "DeepSeek", name: "DeepSeek balance", icon: "deepseek", keyHint: "Your DeepSeek API key." },
+  openrouter: {
+    id: "openrouter",
+    short: "OpenRouter",
+    name: "OpenRouter credits",
+    icon: "openrouter",
+    keyHint: "An OpenRouter API key. If the key has a credit limit, the widget shows what's left of it.",
+  },
+  kimi: {
+    id: "kimi",
+    short: "Kimi",
+    name: "Kimi balance",
+    icon: "kimi",
+    keyHint: "A Moonshot AI (Kimi) API key, from platform.kimi.ai or the China platform.",
+  },
 };
 
 /** Every service refreshes once a minute; the dock's tile owns the timer. */
@@ -71,6 +97,12 @@ const DEMO: Record<Provider, UsageResult> = {
   anthropic: demo("anthropic", "$12.40", "Claude API spend this month"),
   openai: demo("openai", "$8.15", "OpenAI API spend this month"),
   deepseek: demo("deepseek", "$9.80", "DeepSeek balance"),
+  codex: demo("codex", "18%", "ChatGPT plan, session", [
+    { label: "Session", percent: 18, resets_at: null },
+    { label: "Weekly", percent: 46, resets_at: null },
+  ]),
+  openrouter: demo("openrouter", "$7.25", "OpenRouter, left of $10.00"),
+  kimi: demo("kimi", "$4.60", "Kimi balance"),
 };
 
 const time = (ms: number | string) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -244,8 +276,9 @@ function Panel({ instance, provider, chooser }: WidgetProps<AiConfig> & { provid
   const { result, refresh, busy } = useUsage(instance.id, provider);
   const [found, setFound] = useState<boolean | null>(null);
   useEffect(() => {
-    if (provider === "claude_code") invoke<boolean>("ai_claude_code_found").then(setFound);
-  }, [provider]);
+    setFound(null);
+    if (svc.found) invoke<boolean>(svc.found[0]).then(setFound);
+  }, [svc]);
   const r = result?.reading;
 
   return (
@@ -272,10 +305,10 @@ function Panel({ instance, provider, chooser }: WidgetProps<AiConfig> & { provid
         </select>
       )}
 
-      {provider === "claude_code" ? (
+      {svc.source ? (
         <p className="fine source">
           {svc.source}
-          {found === false && " No Claude Code sign-in was found — sign in to Claude Code first."}
+          {found === false && svc.found && ` ${svc.found[1]}`}
         </p>
       ) : (
         <KeyForm key={`${instance.id}-${provider}`} id={instance.id} svc={svc} onSaved={() => refresh(true)} />

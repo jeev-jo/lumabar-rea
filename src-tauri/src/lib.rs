@@ -246,6 +246,7 @@ pub fn run() {
             ai_usage::ai_set_key,
             ai_usage::ai_clear_key,
             ai_usage::ai_claude_code_found,
+            ai_usage::ai_codex_found,
             ai_usage::ai_usage_fetch,
             ai_usage::service_icon,
         ])

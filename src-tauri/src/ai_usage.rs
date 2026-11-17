@@ -7,6 +7,11 @@
 //! - `openai`: OpenAI API spend this month, from the organization costs API with
 //!   an admin key.
 //! - `deepseek`: account balance, with a normal API key.
+//! - `openrouter`: credits used and left on an OpenRouter API key.
+//! - `kimi`: Moonshot AI (Kimi) account balance, with a normal API key.
+//! - `codex`: ChatGPT plan limits, read from the rate-limit snapshots Codex CLI
+//!   writes into its own session logs on this PC. No request is made; the
+//!   figures are as fresh as your last Codex turn.
 //! - `claude_code`: Claude plan limits (Session, Weekly) read with
 //!   Claude Code's own sign-in on this PC, from an internal endpoint that can
 //!   change without notice. The token is read from Claude Code's file, used for
@@ -264,6 +269,219 @@ fn deepseek(key: &str) -> Result<Reading, String> {
     })
 }
 
+fn num(v: &Value, field: &str) -> Option<f64> {
+    match v.get(field)? {
+        Value::Number(n) => n.as_f64(),
+        Value::String(s) => s.parse().ok(),
+        _ => None,
+    }
+}
+
+fn openrouter(key: &str) -> Result<Reading, String> {
+    let body: Value = agent()
+        .get("https://openrouter.ai/api/v1/key")
+        .set("Authorization", &format!("Bearer {key}"))
+        .call()
+        .map_err(|e| http_error("OpenRouter", e))?
+        .into_json()
+        .map_err(|e| format!("OpenRouter sent data this build can't read ({e})."))?;
+    let d = body.get("data").ok_or("OpenRouter sent no key details.")?;
+    let usage = num(d, "usage").unwrap_or(0.0);
+    let mut lines = vec![];
+    for (label, field) in [("Today", "usage_daily"), ("This week", "usage_weekly"), ("This month", "usage_monthly")] {
+        if let Some(v) = num(d, field) {
+            lines.push((label.to_string(), money(v)));
+        }
+    }
+    lines.push(("All time".into(), money(usage)));
+    let mut meters = vec![];
+    let (headline, caption) = match (num(d, "limit"), num(d, "limit_remaining")) {
+        (Some(limit), Some(left)) if limit > 0.0 => {
+            lines.push(("Key limit".into(), money(limit)));
+            meters.push(Meter {
+                label: "Key limit used".into(),
+                percent: ((limit - left) / limit * 100.0).clamp(0.0, 100.0),
+                resets_at: None,
+            });
+            (money(left), format!("OpenRouter, left of {}", money(limit)))
+        }
+        _ => (money(num(d, "usage_monthly").unwrap_or(usage)), "OpenRouter spend this month".to_string()),
+    };
+    if d.get("is_free_tier").and_then(|v| v.as_bool()) == Some(true) {
+        lines.push(("Tier".into(), "Free".into()));
+    }
+    Ok(Reading { provider: "openrouter".into(), headline, caption, lines, meters, data_as_of: None, fetched_at: now_ms() })
+}
+
+fn kimi(key: &str) -> Result<Reading, String> {
+    // Keys from the international and China platforms only work on their own host.
+    let ask = |host: &str| -> Result<Value, ureq::Error> {
+        agent()
+            .get(&format!("https://{host}/v1/users/me/balance"))
+            .set("Authorization", &format!("Bearer {key}"))
+            .call()?
+            .into_json()
+            .map_err(ureq::Error::from)
+    };
+    let (body, symbol) = match ask("api.moonshot.ai") {
+        Ok(b) => (b, "$"),
+        Err(ureq::Error::Status(401, _)) => (ask("api.moonshot.cn").map_err(|e| http_error("Kimi", e))?, "¥"),
+        Err(e) => return Err(http_error("Kimi", e)),
+    };
+    let d = body.get("data").ok_or("Kimi sent no balance.")?;
+    let fmt = |v: f64| format!("{symbol}{v:.2}");
+    let available = num(d, "available_balance").unwrap_or(0.0);
+    let mut lines = vec![("Available".to_string(), fmt(available))];
+    if let Some(v) = num(d, "cash_balance") {
+        lines.push(("Cash".into(), fmt(v)));
+    }
+    if let Some(v) = num(d, "voucher_balance") {
+        lines.push(("Vouchers".into(), fmt(v)));
+    }
+    if available <= 0.0 {
+        lines.push(("Status".into(), "Balance too low for API calls".into()));
+    }
+    Ok(Reading {
+        provider: "kimi".into(),
+        headline: fmt(available),
+        caption: "Kimi balance".into(),
+        lines,
+        meters: vec![],
+        data_as_of: None,
+        fetched_at: now_ms(),
+    })
+}
+
+/// Seconds since the epoch as RFC 3339 (UTC).
+fn rfc3339(secs: i64) -> String {
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    // Civil date from days since 1970-01-01 (Howard Hinnant's algorithm).
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", rem / 3600, rem % 3600 / 60, rem % 60)
+}
+
+/// Codex CLI keeps its sessions in `%CODEX_HOME%\sessions` or `~\.codex\sessions`.
+fn codex_sessions_dir() -> Option<PathBuf> {
+    let home = std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("USERPROFILE").map(|h| PathBuf::from(h).join(".codex")))?;
+    let dir = home.join("sessions");
+    dir.is_dir().then_some(dir)
+}
+
+fn dirs_newest_first(p: &std::path::Path) -> Vec<PathBuf> {
+    let mut v: Vec<PathBuf> = fs::read_dir(p).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    v.sort();
+    v.reverse();
+    v
+}
+
+/// Session logs, newest first, walking year/month/day folders from the latest.
+fn codex_recent_logs(dir: &std::path::Path, max: usize) -> Vec<(std::time::SystemTime, PathBuf)> {
+    let mut out = vec![];
+    for year in dirs_newest_first(dir) {
+        for month in dirs_newest_first(&year) {
+            for day in dirs_newest_first(&month) {
+                out.extend(
+                    fs::read_dir(&day)
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .filter(|e| e.path().extension().is_some_and(|x| x == "jsonl"))
+                        .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path()))),
+                );
+                if out.len() >= max {
+                    out.sort_by(|a, b| b.0.cmp(&a.0));
+                    out.truncate(max);
+                    return out;
+                }
+            }
+        }
+    }
+    out.sort_by(|a, b| b.0.cmp(&a.0));
+    out
+}
+
+/// The last rate-limit snapshot in one session log, read from its end.
+fn codex_snapshot(path: &std::path::Path) -> Option<Value> {
+    use std::io::{Read, Seek, SeekFrom};
+    const TAIL: u64 = 4 << 20;
+    let mut f = fs::File::open(path).ok()?;
+    let len = f.metadata().ok()?.len();
+    f.seek(SeekFrom::Start(len.saturating_sub(TAIL))).ok()?;
+    let mut bytes = vec![];
+    f.take(TAIL).read_to_end(&mut bytes).ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    text.lines().rev().filter(|l| l.contains("\"rate_limits\"")).find_map(|line| {
+        let v: Value = serde_json::from_str(line).ok()?;
+        let rl = v.get("payload").unwrap_or(&v).get("rate_limits")?;
+        let has = |k: &str| rl.get(k).is_some_and(|w| !w.is_null());
+        (has("primary") || has("secondary")).then(|| rl.clone())
+    })
+}
+
+fn codex() -> Result<Reading, String> {
+    let dir = codex_sessions_dir()
+        .ok_or("No Codex CLI sessions were found on this PC. Use Codex signed in with ChatGPT first.")?;
+    let (when, snapshot) = codex_recent_logs(&dir, 40)
+        .into_iter()
+        .find_map(|(t, p)| Some((t, codex_snapshot(&p)?)))
+        .ok_or("Codex hasn't recorded any plan limits yet. They appear after your next Codex turn.")?;
+    let as_of = when.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let now = (now_ms() / 1000) as i64;
+
+    let mut meters = vec![];
+    for key in ["primary", "secondary"] {
+        let Some(w) = snapshot.get(key).filter(|w| !w.is_null()) else { continue };
+        let minutes = w.get("window_minutes").and_then(|v| v.as_i64());
+        let resets = w
+            .get("resets_at")
+            .and_then(|v| v.as_i64())
+            .or_else(|| w.get("resets_in_seconds").and_then(|v| v.as_i64()).map(|s| as_of + s));
+        let mut percent = w.get("used_percent").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        // The window has rolled over since Codex last looked.
+        if resets.is_some_and(|r| r <= now) {
+            percent = 0.0;
+        }
+        let label = match minutes {
+            Some(m) if m <= 6 * 60 => "Session".to_string(),
+            Some(m) if (9_000..=11_000).contains(&m) => "Weekly".to_string(),
+            Some(m) if m % 1440 == 0 => format!("{} days", m / 1440),
+            Some(m) => format!("{} hours", (m as f64 / 60.0).round()),
+            None if key == "primary" => "Session".to_string(),
+            None => "Weekly".to_string(),
+        };
+        meters.push(Meter { label, percent: percent.clamp(0.0, 100.0), resets_at: resets.map(rfc3339) });
+    }
+    if meters.is_empty() {
+        return Err("Codex's last session has no plan limits in it.".into());
+    }
+    meters.sort_by_key(|m| meter_rank(&m.label));
+    let mut lines = vec![];
+    if let Some(plan) = snapshot.get("plan_type").and_then(|v| v.as_str()) {
+        let mut c = plan.chars();
+        lines.push(("Plan".to_string(), c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()));
+    }
+    Ok(Reading {
+        provider: "codex".into(),
+        headline: format!("{}%", meters[0].percent.round()),
+        caption: format!("ChatGPT plan, {}", meters[0].label.to_lowercase()),
+        lines,
+        meters,
+        data_as_of: Some(rfc3339(as_of)),
+        fetched_at: now_ms(),
+    })
+}
+
 /// Claude Code keeps its sign-in in `%CLAUDE_CONFIG_DIR%` or `~\.claude`.
 fn claude_code_file() -> Option<PathBuf> {
     let dir = std::env::var_os("CLAUDE_CONFIG_DIR")
@@ -347,7 +565,7 @@ fn claude_code() -> Result<Reading, String> {
     meters.sort_by_key(|m| meter_rank(&m.label));
     Ok(Reading {
         provider: "claude_code".into(),
-        headline: format!("{:.0}%", meters[0].percent),
+        headline: format!("{}%", meters[0].percent.round()),
         caption: format!("Claude plan, {}", meters[0].label.to_lowercase()),
         lines: vec![],
         meters,
@@ -465,13 +683,16 @@ fn icon_sources(service: &str) -> &'static [&'static str] {
             "https://claude.ai/favicon.ico",
         ],
         "openai" | "chatgpt" => &[
-            "https://chatgpt.com/apple-touch-icon.png",
             "https://openai.com/favicon.ico",
+            "https://cdn.oaistatic.com/assets/favicon-o20kmmos.svg",
+            "https://chatgpt.com/apple-touch-icon.png",
         ],
         "deepseek" => &[
             "https://chat.deepseek.com/favicon.svg",
             "https://www.deepseek.com/favicon.ico",
         ],
+        "openrouter" => &["https://openrouter.ai/apple-touch-icon.png", "https://openrouter.ai/favicon.ico"],
+        "kimi" => &["https://www.kimi.com/favicon.ico", "https://platform.moonshot.ai/favicon.ico"],
         _ => &[],
     }
 }
@@ -554,24 +775,34 @@ pub fn ai_claude_code_found() -> bool {
     claude_code_file().is_some()
 }
 
+#[tauri::command]
+pub fn ai_codex_found() -> bool {
+    codex_sessions_dir().is_some()
+}
+
 /// Fetch a fresh reading; on failure return the last good one marked stale.
 #[tauri::command]
 pub async fn ai_usage_fetch(id: String, provider: String, manual: Option<bool>) -> UsageResult {
     let manual = manual.unwrap_or(false);
     // Claude plan limits belong to the account, not the widget: every Claude
     // widget shares one request. Key-based services are per widget (per key).
-    let source = if provider == "claude_code" { provider.clone() } else { id.clone() };
+    let source = if provider == "claude_code" || provider == "codex" { provider.clone() } else { id.clone() };
     let id2 = id.clone();
     let attempt = tauri::async_runtime::spawn_blocking(move || -> Result<Reading, String> {
         throttled(&source, manual, || {
             if provider == "claude_code" {
                 return claude_code();
             }
+            if provider == "codex" {
+                return codex();
+            }
             let key = secrets::load(&id2).ok_or("Add a key to start.")?;
             match provider.as_str() {
                 "anthropic" => anthropic(&key),
                 "openai" => openai(&key),
                 "deepseek" => deepseek(&key),
+                "openrouter" => openrouter(&key),
+                "kimi" => kimi(&key),
                 other => Err(format!("Unknown provider {other}.")),
             }
         })
@@ -588,5 +819,45 @@ pub async fn ai_usage_fetch(id: String, provider: String, manual: Option<bool>) 
             let last = load_cached(&id);
             UsageResult { stale: last.is_some(), reading: last, error: Some(error) }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rfc3339_dates() {
+        assert_eq!(rfc3339(0), "1970-01-01T00:00:00Z");
+        assert_eq!(rfc3339(1_794_934_841), "2026-11-17T17:00:41Z");
+        assert_eq!(rfc3339(951_782_400), "2000-02-29T00:00:00Z");
+    }
+
+    #[test]
+    fn codex_reads_latest_snapshot() {
+        let home = std::env::temp_dir().join(format!("luma-codex-test-{}", std::process::id()));
+        let day = home.join("sessions").join("2026").join("11").join("17");
+        fs::create_dir_all(&day).unwrap();
+        let soon = now_ms() / 1000 + 3600;
+        let past = now_ms() / 1000 - 60;
+        let log = format!(
+            "{{\"type\":\"session_meta\",\"payload\":{{}}}}\n\
+             {{\"type\":\"event_msg\",\"payload\":{{\"type\":\"token_count\",\"info\":null,\"rate_limits\":{{\"primary\":{{\"used_percent\":10.0,\"window_minutes\":300,\"resets_at\":{soon}}},\"secondary\":null}}}}}}\n\
+             {{\"type\":\"event_msg\",\"payload\":{{\"type\":\"token_count\",\"info\":null,\"rate_limits\":{{\"primary\":{{\"used_percent\":42.5,\"window_minutes\":300,\"resets_at\":{soon}}},\"secondary\":{{\"used_percent\":77.0,\"window_minutes\":10080,\"resets_at\":{past}}},\"plan_type\":\"plus\"}}}}}}\n\
+             {{\"type\":\"response_item\",\"payload\":{{}}}}\n"
+        );
+        fs::write(day.join("rollout-test.jsonl"), log).unwrap();
+        unsafe { std::env::set_var("CODEX_HOME", &home) };
+        let r = codex().unwrap();
+        unsafe { std::env::remove_var("CODEX_HOME") };
+        let _ = fs::remove_dir_all(&home);
+
+        assert_eq!(r.headline, "43%");
+        assert_eq!(r.meters[0].label, "Session");
+        assert_eq!(r.meters[0].percent, 42.5);
+        assert_eq!(r.meters[1].label, "Weekly");
+        // The weekly window already reset, so it reads 0.
+        assert_eq!(r.meters[1].percent, 0.0);
+        assert_eq!(r.lines, vec![("Plan".to_string(), "Plus".to_string())]);
     }
 }
