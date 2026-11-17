@@ -98,3 +98,48 @@
   font-size: 13px;
   color: var(--fg);
 }
+
+/* ---- Style: glass ------------------------------------------------------
+   Windows blurs whatever is behind each surface; these tints sit on top of
+   that blur. A thin top highlight and a light rim give the glass its edge. */
+
+:root {
+  --radius: 8px; /* matches Windows 11's rounded window corners */
+  --highlight: none;
+}
+
+:root[data-style="glass"],
+:root[data-style="glass"][data-theme="dark"] {
+  --bar-bg: rgba(18, 20, 26, 0.34);
+  --panel-bg: rgba(20, 22, 28, 0.52);
+  --page-bg: rgba(16, 18, 24, 0.28);
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.16);
+  --hover: rgba(255, 255, 255, 0.1);
+  --active: rgba(255, 255, 255, 0.16);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+:root[data-style="glass"][data-theme="light"] {
+  --bar-bg: rgba(255, 255, 255, 0.42);
+  --panel-bg: rgba(250, 250, 252, 0.6);
+  --page-bg: rgba(248, 248, 250, 0.36);
+  --card-bg: rgba(255, 255, 255, 0.55);
+  --border: rgba(255, 255, 255, 0.55);
+  --hover: rgba(0, 0, 0, 0.06);
+  --active: rgba(0, 0, 0, 0.1);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-style="glass"][data-theme="system"] {
+    --bar-bg: rgba(255, 255, 255, 0.42);
+    --panel-bg: rgba(250, 250, 252, 0.6);
+    --page-bg: rgba(248, 248, 250, 0.36);
+    --card-bg: rgba(255, 255, 255, 0.55);
+    --border: rgba(255, 255, 255, 0.55);
+    --hover: rgba(0, 0, 0, 0.06);
+    --active: rgba(0, 0, 0, 0.1);
+    --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+  }
+}

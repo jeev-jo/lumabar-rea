@@ -8,12 +8,14 @@ export type Edge = "top" | "bottom";
 export type TaskbarMode = "hide" | "complete" | "leave";
 export type Size = "small" | "medium" | "large";
 export type Theme = "system" | "dark" | "light";
+export type Style = "glass" | "solid";
 
 export type Settings = {
   edge: Edge;
   taskbar_mode: TaskbarMode;
   size: Size;
   theme: Theme;
+  style: Style;
   display: string | null;
   widgets: WidgetInstance[];
 };
@@ -25,6 +27,7 @@ export const updateSettings = (patch: Patch) => invoke<Settings>("update_setting
 function apply(s: Settings) {
   document.documentElement.dataset.theme = s.theme;
   document.documentElement.dataset.size = s.size;
+  document.documentElement.dataset.style = s.style;
 }
 
 /** Current settings, kept live across windows; also applies theme and size to this page. */

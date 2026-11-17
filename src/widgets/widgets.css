@@ -15,6 +15,7 @@
   border: 0;
   border-radius: 11px;
   background: var(--hover);
+  box-shadow: var(--highlight);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -203,9 +204,10 @@ html.popover-page #root {
   box-sizing: border-box;
   height: 100%;
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: var(--panel-bg);
   border: 1px solid var(--border);
+  box-shadow: var(--highlight);
   overflow: auto;
   user-select: text;
 }
@@ -615,7 +617,8 @@ html.popover-page #root {
   padding: 12px;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  box-shadow: var(--highlight);
+  border-radius: 12px;
 }
 
 .tile-preview {
@@ -834,6 +837,7 @@ html.popover-page #root {
 }
 
 .w-ai.multi .mrow {
+  width: 100%;
   display: grid;
   grid-template-columns: 46px 1fr 30px;
   align-items: center;

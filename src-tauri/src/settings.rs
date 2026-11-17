@@ -50,6 +50,24 @@ impl Size {
             Size::Large => 72,
         }
     }
+
+    /// Height of the bar (the dock window) in logical px. Keep in sync with `--bar`.
+    pub fn bar_height(self) -> i32 {
+        match self {
+            Size::Small => 42,
+            Size::Medium => 48,
+            Size::Large => 58,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Style {
+    /// Opaque surfaces.
+    Solid,
+    /// Frosted glass: Windows blurs what is behind each surface.
+    Glass,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -67,6 +85,7 @@ pub struct Settings {
     pub taskbar_mode: TaskbarMode,
     pub size: Size,
     pub theme: Theme,
+    pub style: Style,
     /// Device name of the display the dock sits on (`\\.\DISPLAY2`); `None` = primary.
     pub display: Option<String>,
     /// `None` until first run, when it is seeded from the Windows taskbar's pins.
@@ -82,6 +101,7 @@ impl Default for Settings {
             taskbar_mode: TaskbarMode::Hide,
             size: Size::Medium,
             theme: Theme::System,
+            style: Style::Glass,
             display: None,
             pins: None,
             widgets: Vec::new(),
@@ -127,6 +147,33 @@ pub fn apply_taskbar_mode(mode: TaskbarMode) {
     }
 }
 
+/// Give every window the backdrop for `style`.
+/// The dock and its popups never take focus, so they get the acrylic blur from
+/// `backdrop` (Windows 11's own Acrylic switches off while a window is inactive).
+/// Settings and the picker are ordinary windows and get Mica.
+pub fn apply_style(app: &AppHandle, style: Style) {
+    use tauri::window::{Effect, EffectsBuilder};
+    let glass = style == Style::Glass;
+    for label in ["main", "preview", "popover"] {
+        let Some(w) = app.get_webview_window(label) else { continue };
+        let Ok(h) = w.hwnd() else { continue };
+        if !crate::backdrop::set_glass(windows::Win32::Foundation::HWND(h.0 as _), glass) && glass {
+            eprintln!("[style] {label}: frosted backdrop unavailable on this Windows");
+        }
+    }
+    for label in ["settings", "widgets"] {
+        let Some(w) = app.get_webview_window(label) else { continue };
+        let result = if glass {
+            w.set_effects(EffectsBuilder::new().effect(Effect::Mica).build())
+        } else {
+            w.set_effects(None)
+        };
+        if let Err(e) = result {
+            eprintln!("[style] {label}: {e}");
+        }
+    }
+}
+
 fn broadcast(app: &AppHandle, s: &Settings) {
     let _ = app.emit("settings-changed", s);
 }
@@ -144,6 +191,7 @@ pub struct Patch {
     taskbar_mode: Option<TaskbarMode>,
     size: Option<Size>,
     theme: Option<Theme>,
+    style: Option<Style>,
     /// `Some("")` means "primary display".
     display: Option<String>,
 }
@@ -164,12 +212,18 @@ pub fn update_settings(app: AppHandle, patch: Patch) -> Settings {
         if let Some(v) = patch.theme {
             s.theme = v;
         }
+        if let Some(v) = patch.style {
+            s.style = v;
+        }
         if let Some(v) = patch.display {
             s.display = (!v.is_empty()).then_some(v);
         }
     });
     if s.taskbar_mode != before.taskbar_mode {
         apply_taskbar_mode(s.taskbar_mode);
+    }
+    if s.style != before.style {
+        apply_style(&app, s.style);
     }
     if s.edge != before.edge || s.size != before.size || s.display != before.display {
         dock::set_edge(s.edge);

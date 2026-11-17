@@ -19,9 +19,10 @@ body,
   padding: 10px;
   display: flex;
   gap: 8px;
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: var(--panel-bg);
   border: 1px solid var(--border);
+  box-shadow: var(--highlight);
 }
 
 .card {

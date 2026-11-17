@@ -52,7 +52,8 @@ html.settings-page h2 {
   padding: 14px 16px;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  box-shadow: var(--highlight);
+  border-radius: 10px;
   margin-bottom: 4px;
 }
 

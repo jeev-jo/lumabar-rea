@@ -158,6 +158,7 @@ pub fn init(app: &AppHandle) {
             let ex = GetWindowLongPtrW(h, GWL_EXSTYLE);
             SetWindowLongPtrW(h, GWL_EXSTYLE, ex | WS_EX_TOOLWINDOW.0 as isize);
         }
+        dock::round_corners(h);
     }
 }
 

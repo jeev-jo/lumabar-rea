@@ -103,6 +103,9 @@ export default function SettingsPage() {
             onChange={(size) => set({ size })}
           />
         </Row>
+        <Row title="Style" hint="Glass lets the desktop show through, blurred.">
+          <Segmented value={settings.style} options={[["glass", "Glass"], ["solid", "Solid"]]} onChange={(style) => set({ style })} />
+        </Row>
         <Row title="Theme" hint="System follows Windows' light or dark mode.">
           <Segmented
             value={settings.theme}

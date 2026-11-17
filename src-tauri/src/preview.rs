@@ -94,6 +94,7 @@ fn hide(app: &AppHandle) {
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
     if let Some((_, h)) = preview_hwnd(app) {
         dock::make_tool_window(h);
+        dock::round_corners(h);
     }
     Ok(())
 }

@@ -22,6 +22,18 @@ export default function App() {
   const edge: Edge = settings?.edge ?? "bottom";
   const [dragging, setDragging] = useState(false);
   const dragStartY = useRef<number | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  // Tell Rust how wide the bar wants to be, so the dock window fits it exactly.
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const report = () => invoke("dock_set_bar_width", { width: Math.ceil(el.getBoundingClientRect().width) });
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    report();
+    return () => ro.disconnect();
+  }, []);
   const draggedPin = useRef<string | null>(null);
   const now = useClock();
   const apps = useApps();
@@ -103,6 +115,7 @@ export default function App() {
   return (
     <div className={`strip edge-${edge}`} onContextMenu={onContextMenu}>
       <div
+        ref={barRef}
         className={`bar${dragging ? " dragging" : ""}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

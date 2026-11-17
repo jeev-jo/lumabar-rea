@@ -1,5 +1,6 @@
 mod ai_usage;
 mod apps;
+mod backdrop;
 mod dock;
 mod preview;
 mod secrets;
@@ -103,6 +104,7 @@ pub fn run() {
                 .get_webview_window("main")
                 .expect("the dock window is declared in tauri.conf.json");
             dock::init(&window)?;
+            settings::apply_style(app.handle(), settings::get().style);
             apps::init(app.handle(), &window)?;
             preview::init(app.handle())?;
             system::init(app.handle());
@@ -174,6 +176,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             dock::quit_app,
+            dock::dock_set_bar_width,
             settings::get_settings,
             settings::update_settings,
             taskbar::taskbar_status,

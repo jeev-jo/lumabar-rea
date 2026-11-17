@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, WebviewWindow};
 use windows::core::w;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Graphics::Dwm::{
+    DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+};
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::Shell::{
     DefSubclassProc, SHAppBarMessage, SetWindowSubclass, ABE_BOTTOM, ABE_TOP, ABM_NEW,
@@ -37,6 +40,8 @@ struct DockState {
     /// Broadcast by Explorer when it (re)creates the taskbar, e.g. after a crash.
     taskbar_created_msg: u32,
     registered: bool,
+    /// Width of the bar's content in CSS px, reported by the page.
+    bar_width: f64,
 }
 
 static STATE: Mutex<DockState> = Mutex::new(DockState {
@@ -45,6 +50,7 @@ static STATE: Mutex<DockState> = Mutex::new(DockState {
     callback_msg: 0,
     taskbar_created_msg: 0,
     registered: false,
+    bar_width: 640.0,
 });
 
 fn snapshot() -> DockState {
@@ -64,6 +70,7 @@ fn appbar_data(state: &DockState) -> APPBARDATA {
 pub fn init(window: &WebviewWindow) -> tauri::Result<()> {
     let hwnd = HWND(window.hwnd()?.0 as _);
     make_tool_window(hwnd);
+    round_corners(hwnd);
     unsafe {
         let callback_msg = RegisterWindowMessageW(w!("LumaAiBar.AppBarCallback"));
         let taskbar_created_msg = RegisterWindowMessageW(w!("TaskbarCreated"));
@@ -80,6 +87,20 @@ pub fn init(window: &WebviewWindow) -> tauri::Result<()> {
     }
     apply_position();
     Ok(())
+}
+
+/// Ask Windows 11 to round the window's corners (and clip any backdrop to them).
+/// Older Windows ignores this.
+pub fn round_corners(hwnd: HWND) {
+    unsafe {
+        let pref = DWMWCP_ROUND;
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &pref as *const _ as *const core::ffi::c_void,
+            std::mem::size_of_val(&pref) as u32,
+        );
+    }
 }
 
 /// Keep a window out of Alt-Tab and stop clicks on it from stealing focus.
@@ -157,14 +178,19 @@ fn apply_position() {
             rc = abd.rc;
         }
 
+        // The strip above is what the shell reserves. The window itself is only the
+        // bar, centred in it, so the glass backdrop and the corners fit the bar and
+        // clicks beside it reach the desktop.
         let RECT { left, top, right, bottom } = rc;
+        let bar_h = prefs.size.bar_height() * dpi / 96;
+        let bar_w = ((state.bar_width * dpi as f64 / 96.0).round() as i32).clamp(120, (right - left - 16).max(120));
         let _ = SetWindowPos(
             hwnd,
             Some(HWND_TOPMOST),
-            left,
-            top,
-            right - left,
-            bottom - top,
+            left + (right - left - bar_w) / 2,
+            top + (bottom - top - bar_h) / 2,
+            bar_w,
+            bar_h,
             SWP_NOACTIVATE | SWP_SHOWWINDOW,
         );
     }
@@ -241,6 +267,19 @@ pub fn set_edge(edge: Edge) {
 /// Re-place the dock after a settings change. Must run on the main thread.
 pub fn reposition() {
     apply_position();
+}
+
+/// The page reports the bar's natural width whenever its content changes.
+#[tauri::command]
+pub fn dock_set_bar_width(app: AppHandle, width: f64) {
+    {
+        let mut s = STATE.lock().unwrap();
+        if (s.bar_width - width).abs() < 1.0 {
+            return;
+        }
+        s.bar_width = width;
+    }
+    let _ = app.run_on_main_thread(apply_position);
 }
 
 #[tauri::command]

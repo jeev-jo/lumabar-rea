@@ -12,24 +12,23 @@ body,
 }
 
 .strip {
-  height: var(--strip);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  height: 100%;
 }
 
+/* The window is sized to this bar (see dock_set_bar_width). */
 .bar {
-  height: var(--bar);
-  min-width: 420px;
-  max-width: calc(100vw - 24px);
+  height: 100%;
+  width: max-content;
+  min-width: 360px;
   box-sizing: border-box;
   padding: 0 6px;
   display: flex;
   align-items: center;
   gap: 6px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--bar-bg);
   border: 1px solid var(--border);
+  box-shadow: var(--highlight);
   cursor: grab;
   transition: opacity 120ms;
 }
