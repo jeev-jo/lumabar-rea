@@ -74,21 +74,21 @@
 :root,
 :root[data-size="medium"] {
   --strip: 60px;
-  --bar: 48px;
+  --bar: 52px;
   --btn: 42px;
   --icon: 28px;
 }
 
 :root[data-size="small"] {
   --strip: 52px;
-  --bar: 42px;
+  --bar: 46px;
   --btn: 36px;
   --icon: 24px;
 }
 
 :root[data-size="large"] {
   --strip: 72px;
-  --bar: 58px;
+  --bar: 62px;
   --btn: 52px;
   --icon: 34px;
 }

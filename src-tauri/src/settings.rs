@@ -51,12 +51,13 @@ impl Size {
         }
     }
 
-    /// Height of the bar (the dock window) in logical px. Keep in sync with `--bar`.
+    /// Height of the bar (the dock window) in logical px. Keep in sync with `--bar`:
+    /// tile height (`--btn`) + 4 px inset above and below + the 1 px border.
     pub fn bar_height(self) -> i32 {
         match self {
-            Size::Small => 42,
-            Size::Medium => 48,
-            Size::Large => 58,
+            Size::Small => 46,
+            Size::Medium => 52,
+            Size::Large => 62,
         }
     }
 }

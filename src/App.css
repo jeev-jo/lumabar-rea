@@ -21,7 +21,7 @@ body,
   width: max-content;
   min-width: 360px;
   box-sizing: border-box;
-  padding: 0 6px;
+  padding: 0 4px;
   display: flex;
   align-items: center;
   gap: 6px;

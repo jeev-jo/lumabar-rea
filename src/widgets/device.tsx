@@ -387,7 +387,14 @@ export function NowPlayingPanel() {
 
 // ---- Screen time ---------------------------------------------------------------
 
-type Today = { total: number; hours: number[]; apps: { name: string; exe: string; secs: number }[]; source?: "windows" | "dock" };
+type Today = {
+  total: number;
+  hours: number[];
+  apps: { name: string; exe: string; secs: number }[];
+  other_apps?: number;
+  tracked?: number;
+  source?: "windows" | "dock";
+};
 
 const DEMO_TODAY: Today = {
   total: 8400,
@@ -467,7 +474,12 @@ function AppIcon({ exe }: { exe: string }) {
 export function ScreenTimePanel() {
   const t = useToday();
   if (!t) return null;
-  const top = t.apps[0]?.secs ?? 1;
+  // Every row is a share of the same total, so the list adds up to it.
+  const rows = [...t.apps.map((a) => ({ key: a.exe, name: a.name, exe: a.exe as string | null, secs: a.secs }))];
+  if ((t.other_apps ?? 0) >= 60) rows.push({ key: "other", name: "Other apps", exe: null, secs: t.other_apps! });
+  const untracked = t.total - (t.tracked ?? rows.reduce((n, r) => n + r.secs, 0));
+  if (untracked >= 60) rows.push({ key: "before", name: "Before the dock was running", exe: null, secs: untracked });
+  const scaleTo = Math.max(1, t.total);
   return (
     <div className="panel">
       <h3>
@@ -483,21 +495,21 @@ export function ScreenTimePanel() {
         <span>24</span>
       </div>
       <ul className="app-usage">
-        {t.apps.map((a) => (
-          <li key={a.exe}>
-            <AppIcon exe={a.exe} />
-            <span className="name">{a.name}</span>
+        {rows.map((r) => (
+          <li key={r.key} className={r.exe ? "" : "muted"}>
+            {r.exe ? <AppIcon exe={r.exe} /> : <span className="glyph">{r.key === "before" ? G.watch : ""}</span>}
+            <span className="name">{r.name}</span>
             <span className="meter">
-              <i style={{ width: `${(a.secs / top) * 100}%` }} />
+              <i style={{ width: `${(r.secs / scaleTo) * 100}%` }} />
             </span>
-            <b>{dur(a.secs)}</b>
+            <b>{dur(r.secs)}</b>
           </li>
         ))}
       </ul>
       <p className="fine">
         {t.source === "windows"
-          ? "Total and hours from Windows (screen-on time today). Apps are counted by the dock while it runs. Kept only on this PC."
-          : "Counted by the dock while you use the PC (Windows' record wasn't available). Kept only on this PC."}
+          ? "Total and hours from Windows (screen-on time today). Apps are counted by the dock the same way while it runs; time before that is shown on its own. Kept only on this PC."
+          : "Counted by the dock while the screen is on (Windows' record wasn't available). Kept only on this PC."}
       </p>
     </div>
   );

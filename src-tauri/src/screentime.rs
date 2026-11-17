@@ -4,8 +4,9 @@
 //! periods in its power-state log (what Settings > Battery usage counts as
 //! screen on), read with `powercfg /batteryreport` every few minutes. Windows
 //! doesn't say which app was in front, so the per-app split is counted by the
-//! dock: every 15 seconds, while you're at the PC (input within 5 minutes,
-//! not on the lock screen), the app in front gets those 15 seconds. If the
+//! dock with the same rule Windows uses for screen time: every 15 seconds the
+//! screen is on and unlocked, the app in front gets those 15 seconds (when the
+//! screen turns off or the PC sleeps, the dock isn't running ticks). If the
 //! Windows record isn't available, the dock's own count is used for
 //! everything. Kept only on this PC.
 
@@ -16,14 +17,12 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use windows::Win32::System::SystemInformation::{GetLocalTime, GetTickCount};
-use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
+use windows::Win32::System::SystemInformation::GetLocalTime;
 use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 
 use crate::{apps, taskbar};
 
 const TICK: u64 = 15;
-const IDLE_AFTER_MS: u32 = 5 * 60 * 1000;
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 struct AppTime {
@@ -66,15 +65,6 @@ fn save(day: &Day) {
     let _ = fs::write(p, serde_json::to_string(day).unwrap_or_default());
 }
 
-fn idle_ms() -> u32 {
-    let mut info = LASTINPUTINFO { cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
-    unsafe {
-        if !GetLastInputInfo(&mut info).as_bool() {
-            return 0;
-        }
-        GetTickCount().wrapping_sub(info.dwTime)
-    }
-}
 
 /// The app in front: (grouping key, display name, exe path).
 fn front_app() -> Option<(String, String, String)> {
@@ -93,7 +83,7 @@ fn front_app() -> Option<(String, String, String)> {
 }
 
 fn tick() {
-    if idle_ms() > IDLE_AFTER_MS || front_app().is_none() {
+    if front_app().is_none() {
         return;
     }
     let (date, hour) = today();
@@ -239,8 +229,13 @@ pub struct Today {
     total: u64,
     /// Seconds used in each hour, 0–23.
     hours: Vec<u64>,
-    /// Most-used apps first.
+    /// Most-used apps first (top 8).
     apps: Vec<AppUsage>,
+    /// Time in apps beyond the top 8.
+    other_apps: u64,
+    /// Total time the dock counted per app today (the rest of `total` was
+    /// before the dock was running).
+    tracked: u64,
     /// "windows" when the total and hours come from Windows' record, "dock" otherwise.
     source: &'static str,
 }
@@ -267,13 +262,18 @@ pub async fn screen_time_today() -> Today {
         .map(|a| AppUsage { name: a.name.clone(), exe: a.exe.clone(), secs: a.secs })
         .collect();
     apps.sort_by(|a, b| b.secs.cmp(&a.secs));
+    let tracked: u64 = apps.iter().map(|a| a.secs).sum();
+    let other_apps: u64 = apps.iter().skip(8).map(|a| a.secs).sum();
     apps.truncate(8);
     match system {
-        Some((total, hours)) => Today { total, hours, apps, source: "windows" },
+        // Windows' total can't be below what the dock itself saw.
+        Some((total, hours)) => Today { total: total.max(tracked), hours, apps, other_apps, tracked, source: "windows" },
         None => Today {
             total: day.total,
             hours: if day.hours.len() == 24 { day.hours.clone() } else { vec![0; 24] },
             apps,
+            other_apps,
+            tracked,
             source: "dock",
         },
     }
