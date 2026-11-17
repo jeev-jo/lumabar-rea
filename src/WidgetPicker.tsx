@@ -99,7 +99,7 @@ export default function WidgetPicker() {
 
   const query = q.trim().toLowerCase();
   const matches = useMemo(
-    () => WIDGETS.filter((k) => !query || `${k.name} ${k.description} ${k.group}`.toLowerCase().includes(query)),
+    () => WIDGETS.filter((k) => !k.hidden && (!query || `${k.name} ${k.description} ${k.group}`.toLowerCase().includes(query))),
     [query],
   );
 
@@ -112,7 +112,8 @@ export default function WidgetPicker() {
   const shownCount = groupsShown.reduce((n, g) => n + matches.filter((k) => k.group === g).length, 0);
 
   const nav: Category[] = ["all", ...GROUPS];
-  const navCount = (c: Category) => (c === "all" ? WIDGETS.length : WIDGETS.filter((k) => k.group === c).length);
+  const offered = WIDGETS.filter((k) => !k.hidden);
+  const navCount = (c: Category) => (c === "all" ? offered.length : offered.filter((k) => k.group === c).length);
 
   return (
     <div className="picker2">

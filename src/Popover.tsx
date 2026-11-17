@@ -27,7 +27,11 @@ export default function Popover() {
   const Panel = kind.Panel;
   // Keyed by id so switching widgets starts the panel fresh.
   return (
-    <div className="popover">
+    <div
+      className="popover"
+      onMouseEnter={() => invoke("popover_hover", { source: "popover", inside: true })}
+      onMouseLeave={() => invoke("popover_hover", { source: "popover", inside: false })}
+    >
       <Panel key={instance.id} instance={instance} />
     </div>
   );

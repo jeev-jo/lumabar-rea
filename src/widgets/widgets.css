@@ -645,19 +645,7 @@ html.popover-page #root {
   font-size: 12px;
 }
 
-.experimental {
-  font-size: 12px;
-  line-height: 1.45;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--warning);
-  background: var(--hover);
-}
 
-.experimental .found {
-  margin-top: 6px;
-  opacity: 0.8;
-}
 
 .reading {
   margin-top: 12px;
@@ -824,4 +812,81 @@ html.popover-page #root {
   border-radius: 11px;
   font-size: 11px;
   opacity: 0.8;
+}
+
+/* ---- service icons and the AI tiles ---- */
+
+.svc-icon {
+  flex: none;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.svc-icon.letter {
+  display: grid;
+  place-items: center;
+  background: var(--fallback);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.w-ai.multi {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.w-ai.multi .mrows {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.w-ai.multi .mrow {
+  grid-template-columns: 44px 1fr 28px;
+}
+
+.w-ai .value small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.svc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.svc-head h3 {
+  margin: 0;
+}
+
+.svc-head .fine {
+  margin: 2px 0 0;
+}
+
+.source {
+  margin: 0 0 4px;
+}
+
+.meter-row .meter-label {
+  align-items: baseline;
+  gap: 8px;
+}
+
+.meter-row .meter-label span {
+  flex: 1;
+  font-weight: 600;
+}
+
+.meter-row .meter-label small {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.w-ai-panel .refresh {
+  font-weight: 600;
 }

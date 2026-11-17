@@ -92,6 +92,8 @@ pub struct Settings {
     pub pins: Option<Vec<Pin>>,
     /// Widgets in the dock, in order.
     pub widgets: Vec<WidgetInstance>,
+    /// Show a widget's details when the pointer rests on it.
+    pub glance: bool,
 }
 
 impl Default for Settings {
@@ -105,6 +107,7 @@ impl Default for Settings {
             display: None,
             pins: None,
             widgets: Vec::new(),
+            glance: true,
         }
     }
 }
@@ -192,6 +195,7 @@ pub struct Patch {
     size: Option<Size>,
     theme: Option<Theme>,
     style: Option<Style>,
+    glance: Option<bool>,
     /// `Some("")` means "primary display".
     display: Option<String>,
 }
@@ -214,6 +218,9 @@ pub fn update_settings(app: AppHandle, patch: Patch) -> Settings {
         }
         if let Some(v) = patch.style {
             s.style = v;
+        }
+        if let Some(v) = patch.glance {
+            s.glance = v;
         }
         if let Some(v) = patch.display {
             s.display = (!v.is_empty()).then_some(v);

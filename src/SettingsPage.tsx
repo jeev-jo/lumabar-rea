@@ -148,6 +148,9 @@ export default function SettingsPage() {
 
       <section>
         <h2>Widgets</h2>
+        <Row title="Show details on hover" hint="Rest the pointer on a widget to see its details. Click a widget to keep them open.">
+          <Toggle label="Show details on hover" checked={settings.glance} onChange={(glance) => set({ glance })} />
+        </Row>
         <Row title="Add, remove and arrange widgets" hint={`${settings.widgets.length} in the dock`}>
           <button className="action" onClick={() => invoke("open_widget_picker")}>
             Open widgets

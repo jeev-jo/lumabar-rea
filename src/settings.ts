@@ -18,6 +18,8 @@ export type Settings = {
   style: Style;
   display: string | null;
   widgets: WidgetInstance[];
+  /** Show a widget's details when the pointer rests on it. */
+  glance: boolean;
 };
 
 export type Patch = Partial<Omit<Settings, "display" | "widgets">> & { display?: string };

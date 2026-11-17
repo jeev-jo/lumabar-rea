@@ -34,6 +34,22 @@ async function widgetMenu(w: WidgetInstance) {
 // Shared across both sides' groups, so a tile can be dragged from one to the other.
 let draggedId: string | null = null;
 
+// Hover glance: details open after the pointer rests on a widget briefly.
+let glanceTimer: number | undefined;
+
+function glanceEnter(el: HTMLElement, w: WidgetInstance, panel: { width: number; height: number }) {
+  window.clearTimeout(glanceTimer);
+  const r = el.getBoundingClientRect();
+  glanceTimer = window.setTimeout(() => {
+    invoke("popover_glance", { id: w.id, anchorX: r.left + r.width / 2, width: panel.width, height: panel.height }).catch(console.error);
+  }, 450);
+}
+
+function glanceLeave() {
+  window.clearTimeout(glanceTimer);
+  invoke("popover_hover", { source: "dock", inside: false });
+}
+
 /**
  * One side's widget group in the dock. Normally a click opens a widget's
  * expanded view. In edit mode (while the Widgets window is open) the tiles can
@@ -87,8 +103,11 @@ export function DockWidgets({
             className={`widget size-${w.size}${over === w.id ? " drop-before" : ""}`}
             draggable={edit}
             title={edit ? `${kind.name} — drag to move, across the apps to switch sides` : undefined}
+            onMouseEnter={(e) => !edit && glanceEnter(e.currentTarget, w, kind.panel)}
+            onMouseLeave={() => !edit && glanceLeave()}
             onClick={(e) => {
               if (edit) return;
+              window.clearTimeout(glanceTimer);
               const r = e.currentTarget.getBoundingClientRect();
               invoke("popover_toggle", {
                 id: w.id,

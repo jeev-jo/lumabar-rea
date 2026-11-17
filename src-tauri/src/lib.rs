@@ -50,8 +50,10 @@ pub fn run() {
             // Closing Settings only hides it, so it opens instantly next time.
             // The widget popover closes when you click anywhere else.
             if window.label() == widgets::POPOVER {
-                if let WindowEvent::Focused(false) = event {
-                    widgets::popover_hide_now(window.app_handle());
+                match event {
+                    WindowEvent::Focused(false) => widgets::popover_hide_now(window.app_handle()),
+                    WindowEvent::Focused(true) => widgets::popover_focused(),
+                    _ => {}
                 }
             }
             if window.label() == "settings" || window.label() == widgets::PICKER {
@@ -219,6 +221,8 @@ pub fn run() {
             widgets::play_alert,
             widgets::popover_toggle,
             widgets::popover_hide,
+            widgets::popover_glance,
+            widgets::popover_hover,
             widgets::open_widget_picker,
             widgets::close_widget_picker,
             widgets::widgets_edit_mode,
@@ -227,6 +231,7 @@ pub fn run() {
             ai_usage::ai_clear_key,
             ai_usage::ai_claude_code_found,
             ai_usage::ai_usage_fetch,
+            ai_usage::service_icon,
         ])
         .build(tauri::generate_context!())
         .expect("error while building luma-ai-bar")

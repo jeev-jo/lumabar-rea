@@ -6,7 +6,7 @@ import { TodoPanel, TodoTile } from "./todo";
 import { NotesPanel, NotesTile } from "./notes";
 import { PomodoroPanel, PomodoroTile } from "./pomodoro";
 import { WorldClockPanel, WorldClockTile } from "./worldclock";
-import { AiPanel, AiTile } from "./ai";
+import { AiPanel, AiTile, aiWidget } from "./ai";
 
 /**
  * A widget = this manifest + a Tile (in the dock) + a Panel (the expanded view
@@ -21,6 +21,8 @@ export type WidgetKind = {
   defaultSize: WidgetSize;
   /** Expanded view size in CSS px. */
   panel: { width: number; height: number };
+  /** Kept for existing widgets but not offered in the picker. */
+  hidden?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Tile: ComponentType<WidgetProps<any>>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,15 +31,56 @@ export type WidgetKind = {
 
 export const WIDGETS: WidgetKind[] = [
   {
+    kind: "claude",
+    name: "Claude",
+    group: "AI",
+    description: "Your Claude plan's Session and Weekly limits, from your Claude Code sign-in.",
+    sizes: ["s", "m", "l"],
+    defaultSize: "l",
+    panel: { width: 340, height: 330 },
+    ...aiWidget("claude_code"),
+  },
+  {
+    kind: "claude_api",
+    name: "Claude API",
+    group: "AI",
+    description: "Claude API spend this month, with an Admin API key.",
+    sizes: ["s", "m", "l"],
+    defaultSize: "m",
+    panel: { width: 340, height: 360 },
+    ...aiWidget("anthropic"),
+  },
+  {
+    kind: "openai",
+    name: "OpenAI",
+    group: "AI",
+    description: "OpenAI API spend this month, with an admin key.",
+    sizes: ["s", "m", "l"],
+    defaultSize: "m",
+    panel: { width: 340, height: 360 },
+    ...aiWidget("openai"),
+  },
+  {
+    kind: "deepseek",
+    name: "DeepSeek",
+    group: "AI",
+    description: "Your DeepSeek balance.",
+    sizes: ["s", "m", "l"],
+    defaultSize: "m",
+    panel: { width: 340, height: 360 },
+    ...aiWidget("deepseek"),
+  },
+  {
     kind: "ai",
     name: "AI usage",
     group: "AI",
-    description: "Claude or OpenAI spend, DeepSeek balance, or Claude plan limits.",
+    description: "Choose a service in its settings.",
     sizes: ["s", "m", "l"],
     defaultSize: "m",
-    panel: { width: 350, height: 500 },
+    panel: { width: 350, height: 460 },
     Tile: AiTile,
     Panel: AiPanel,
+    hidden: true,
   },
   {
     kind: "system",

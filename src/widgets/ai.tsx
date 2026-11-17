@@ -17,38 +17,60 @@ type Reading = {
 };
 type UsageResult = { reading: Reading | null; error: string | null; stale: boolean };
 
-const PROVIDERS: { id: Provider; short: string; name: string; keyHint?: string; every: number }[] = [
-  {
+type Service = {
+  id: Provider;
+  /** Short name on the tile. */
+  short: string;
+  /** Full name in the details view. */
+  name: string;
+  /** Which site icon to show (see `service_icon` in Rust). */
+  icon: string;
+  keyHint?: string;
+  source?: string;
+};
+
+export const SERVICES: Record<Provider, Service> = {
+  claude_code: {
+    id: "claude_code",
+    short: "Claude",
+    name: "Claude plan limits",
+    icon: "claude",
+    source: "Read from your Claude Code sign-in on this PC. The sign-in is only read, never stored or shown.",
+  },
+  anthropic: {
     id: "anthropic",
     short: "Claude API",
     name: "Claude API spend",
+    icon: "claude",
     keyHint: "An Admin API key (starts sk-ant-admin), from the Claude Console under Settings → Admin keys. Data arrives 4–24 hours late.",
-    every: 60_000,
   },
-  {
+  openai: {
     id: "openai",
     short: "OpenAI",
     name: "OpenAI API spend",
+    icon: "openai",
     keyHint: "An OpenAI admin key, from the OpenAI platform's organization settings.",
-    every: 60_000,
   },
-  { id: "deepseek", short: "DeepSeek", name: "DeepSeek balance", keyHint: "Your DeepSeek API key.", every: 60_000 },
-  { id: "claude_code", short: "Claude plan", name: "Claude plan limits (experimental)", every: 60_000 },
-];
-const providerOf = (cfg: AiConfig) => PROVIDERS.find((p) => p.id === (cfg.provider ?? "anthropic"))!;
+  deepseek: { id: "deepseek", short: "DeepSeek", name: "DeepSeek balance", icon: "deepseek", keyHint: "Your DeepSeek API key." },
+};
 
-const DEMO: UsageResult = {
-  reading: {
-    provider: "claude_code",
-    headline: "42%",
-    caption: "Claude plan, 5-hour window",
-    lines: [],
-    meters: [{ label: "5-hour window", percent: 42, resets_at: null }],
-    data_as_of: null,
-    fetched_at: Date.now(),
-  },
+/** Every service refreshes once a minute; the dock's tile owns the timer. */
+const EVERY = 60_000;
+
+const demo = (provider: Provider, headline: string, caption: string, meters: Meter[] = []): UsageResult => ({
+  reading: { provider, headline, caption, lines: [], meters, data_as_of: null, fetched_at: Date.now() },
   error: null,
   stale: false,
+});
+
+const DEMO: Record<Provider, UsageResult> = {
+  claude_code: demo("claude_code", "34%", "Claude plan, session", [
+    { label: "Session", percent: 34, resets_at: null },
+    { label: "Weekly", percent: 21, resets_at: null },
+  ]),
+  anthropic: demo("anthropic", "$12.40", "Claude API spend this month"),
+  openai: demo("openai", "$8.15", "OpenAI API spend this month"),
+  deepseek: demo("deepseek", "$9.80", "DeepSeek balance"),
 };
 
 const time = (ms: number | string) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -74,9 +96,36 @@ function MeterBar({ m, thin }: { m: Meter; thin?: boolean }) {
   );
 }
 
-/** Shared between the tile and the panel: the last result, refreshed on a timer by the tile. */
+// ---- service icons: fetched once by Rust from each service's own site ----
+
+const iconCache = new Map<string, Promise<string | null>>();
+
+export function ServiceIcon({ service, label, size = 20 }: { service: string; label: string; size?: number }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    let p = iconCache.get(service);
+    if (!p) {
+      p = invoke<string | null>("service_icon", { service }).catch(() => null);
+      iconCache.set(service, p);
+    }
+    p.then((s) => live && setSrc(s));
+    return () => {
+      live = false;
+    };
+  }, [service]);
+  return src ? (
+    <img className="svc-icon" src={src} alt="" width={size} height={size} draggable={false} />
+  ) : (
+    <span className="svc-icon letter" style={{ width: size, height: size }}>
+      {label.slice(0, 1)}
+    </span>
+  );
+}
+
+/** The last result, shared by the tile and the details view; the tile refreshes it. */
 function useUsage(id: string, provider: Provider, preview?: boolean) {
-  const [result, save] = useWidgetData<UsageResult | null>(id, preview ? DEMO : null, preview);
+  const [result, save] = useWidgetData<UsageResult | null>(id, preview ? DEMO[provider] : null, preview);
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(async () => {
     if (preview) return;
@@ -90,59 +139,59 @@ function useUsage(id: string, provider: Provider, preview?: boolean) {
   return { result, refresh, busy };
 }
 
-export function AiTile({ instance, preview }: WidgetProps<AiConfig>) {
-  const p = providerOf(instance.config);
-  const { result, refresh } = useUsage(instance.id, p.id, preview);
+function Tile({ instance, preview, provider }: WidgetProps<AiConfig> & { provider: Provider }) {
+  const svc = SERVICES[provider];
+  const { result, refresh } = useUsage(instance.id, provider, preview);
 
-  // The dock's tile owns the timer, so each provider is asked at most once per interval.
   useEffect(() => {
     if (preview) return;
     refresh();
-    const t = setInterval(refresh, p.every);
+    const t = setInterval(refresh, EVERY);
     return () => clearInterval(t);
-  }, [p.id, preview]);
+  }, [provider, preview]);
 
   const r = result?.reading;
   const stale = !!result?.stale;
-  const failedNoData = result && !r;
   const title = r
     ? `${r.caption}: ${r.headline}${stale ? `\nLast reading at ${time(r.fetched_at)} — ${result?.error}` : ""}`
-    : result?.error ?? p.name;
-  // Plan limits: one row per window (Session, Weekly…) so both are visible at once.
+    : result?.error ?? svc.name;
   const meters = r?.meters ?? [];
+  const icon = <ServiceIcon service={svc.icon} label={svc.short} size={instance.size === "s" ? 18 : 22} />;
+
+  // Plan limits: Session and Weekly side by side.
   if (meters.length > 1 && instance.size !== "s") {
     return (
       <div className={`w-ai multi ${instance.size}${stale ? " stale" : ""}`} title={title}>
-        {meters.slice(0, 2).map((m) => (
-          <span key={m.label} className="mrow">
-            <small>{m.label}</small>
-            <MeterBar m={m} thin />
-            <b>{Math.round(m.percent)}%</b>
-          </span>
-        ))}
-        {stale && <span className="glyph warn">{""}</span>}
+        {icon}
+        <span className="mrows">
+          {meters.slice(0, 2).map((m) => (
+            <span key={m.label} className="mrow">
+              <small>{m.label}</small>
+              <MeterBar m={m} thin />
+              <b>{Math.round(m.percent)}%</b>
+            </span>
+          ))}
+        </span>
       </div>
     );
   }
-  const meter = meters[0];
 
   return (
     <div className={`w-ai ${instance.size}${stale ? " stale" : ""}`} title={title}>
-      {instance.size !== "s" && <span className="who">{p.short}</span>}
-      {failedNoData ? (
-        <span className="setup">{result?.error === "Add a key to start." ? "Add key" : "Can't read"}</span>
+      {icon}
+      {result && !r ? (
+        <span className="setup">{result.error === "Add a key to start." ? "Add key" : "Can't read"}</span>
       ) : (
         <span className="value">
           <b>{r?.headline ?? "…"}</b>
-          {stale && <span className="glyph warn">{""}</span>}
+          {instance.size === "l" && <small>{svc.short}</small>}
         </span>
       )}
-      {meter && <MeterBar m={meter} thin />}
     </div>
   );
 }
 
-function KeyForm({ id, provider, onSaved }: { id: string; provider: (typeof PROVIDERS)[number]; onSaved: () => void }) {
+function KeyForm({ id, svc, onSaved }: { id: string; svc: Service; onSaved: () => void }) {
   const [has, setHas] = useState<boolean | null>(null);
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -181,47 +230,48 @@ function KeyForm({ id, provider, onSaved }: { id: string; provider: (typeof PROV
       <button className="primary" disabled={!key.trim()}>
         Save
       </button>
-      <p className="fine">{provider.keyHint} It's encrypted with your Windows account and only sent to that provider.</p>
+      <p className="fine">{svc.keyHint} It's encrypted with your Windows account and only sent to that service.</p>
       {error && <p className="error">{error}</p>}
     </form>
   );
 }
 
-export function AiPanel({ instance }: WidgetProps<AiConfig>) {
-  const p = providerOf(instance.config);
-  const { result, refresh, busy } = useUsage(instance.id, p.id);
+function Panel({ instance, provider, chooser }: WidgetProps<AiConfig> & { provider: Provider; chooser?: boolean }) {
+  const svc = SERVICES[provider];
+  const { result, refresh, busy } = useUsage(instance.id, provider);
   const [found, setFound] = useState<boolean | null>(null);
   useEffect(() => {
-    if (p.id === "claude_code") invoke<boolean>("ai_claude_code_found").then(setFound);
-  }, [p.id]);
+    if (provider === "claude_code") invoke<boolean>("ai_claude_code_found").then(setFound);
+  }, [provider]);
   const r = result?.reading;
 
   return (
     <div className="panel w-ai-panel">
-      <h3>AI usage</h3>
-      <select
-        value={p.id}
-        onChange={(e) => {
-          updateConfig(instance.id, { ...instance.config, provider: e.target.value });
-        }}
-      >
-        {PROVIDERS.map((x) => (
-          <option key={x.id} value={x.id}>
-            {x.name}
-          </option>
-        ))}
-      </select>
-
-      {p.id === "claude_code" ? (
-        <div className="experimental">
-          <b>Experimental.</b> Reads Claude Code's own sign-in on this PC and asks an internal Anthropic endpoint for your plan
-          limits. It can change or stop working without notice. The sign-in is only read, never stored or shown.
-          <div className="found">
-            {found === null ? "" : found ? "Claude Code sign-in found." : "No Claude Code sign-in found on this PC."}
-          </div>
+      <div className="svc-head">
+        <ServiceIcon service={svc.icon} label={svc.short} size={28} />
+        <div>
+          <h3>{svc.name}</h3>
+          {r && <span className="fine">Updated {time(r.fetched_at)} · refreshes every minute</span>}
         </div>
+      </div>
+
+      {chooser && (
+        <select value={provider} onChange={(e) => updateConfig(instance.id, { ...instance.config, provider: e.target.value })}>
+          {Object.values(SERVICES).map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {provider === "claude_code" ? (
+        <p className="fine source">
+          {svc.source}
+          {found === false && " No Claude Code sign-in was found — sign in to Claude Code first."}
+        </p>
       ) : (
-        <KeyForm key={`${instance.id}-${p.id}`} id={instance.id} provider={p} onSaved={refresh} />
+        <KeyForm key={`${instance.id}-${provider}`} id={instance.id} svc={svc} onSaved={refresh} />
       )}
 
       {result?.error && (
@@ -231,20 +281,22 @@ export function AiPanel({ instance }: WidgetProps<AiConfig>) {
         </p>
       )}
 
-      {r && r.provider === p.id && (
+      {r && r.provider === provider && (
         <div className={`reading${result?.stale ? " stale" : ""}`}>
-          <div className="headline">
-            <b>{r.headline}</b>
-            <span>{r.caption}</span>
-          </div>
+          {r.meters.length === 0 && (
+            <div className="headline">
+              <b>{r.headline}</b>
+              <span>{r.caption}</span>
+            </div>
+          )}
           {r.meters.map((m) => (
             <div key={m.label} className="meter-row">
               <div className="meter-label">
                 <span>{m.label}</span>
+                <small>{until(m.resets_at)}</small>
                 <b>{Math.round(m.percent)}%</b>
               </div>
               <MeterBar m={m} />
-              <small>{until(m.resets_at)}</small>
             </div>
           ))}
           {r.lines.map(([label, value], i) => (
@@ -258,13 +310,24 @@ export function AiPanel({ instance }: WidgetProps<AiConfig>) {
 
       <div className="actions">
         <span className="fine">
-          {r ? `Updated ${time(r.fetched_at)}` : ""}
-          {r?.data_as_of ? ` · data up to ${new Date(r.data_as_of).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}` : ""}
+          {r?.data_as_of ? `Data up to ${new Date(r.data_as_of).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}` : ""}
         </span>
-        <button className="link" disabled={busy} onClick={refresh}>
+        <button className="refresh" disabled={busy} onClick={refresh}>
           {busy ? "Checking…" : "Refresh"}
         </button>
       </div>
     </div>
   );
 }
+
+/** One widget kind per service: the tile and details view with that service fixed. */
+export function aiWidget(provider: Provider) {
+  return {
+    Tile: (p: WidgetProps<AiConfig>) => <Tile {...p} provider={provider} />,
+    Panel: (p: WidgetProps<AiConfig>) => <Panel {...p} provider={provider} />,
+  };
+}
+
+/** The original "AI usage" widget, where the service is chosen in its settings. Kept so existing ones still work. */
+export const AiTile = (p: WidgetProps<AiConfig>) => <Tile {...p} provider={p.instance.config.provider ?? "anthropic"} />;
+export const AiPanel = (p: WidgetProps<AiConfig>) => <Panel {...p} provider={p.instance.config.provider ?? "anthropic"} chooser />;

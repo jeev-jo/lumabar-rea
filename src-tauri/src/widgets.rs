@@ -14,7 +14,7 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Diagnostics::Debug::MessageBeep;
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, IsWindowVisible, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos,
-    ShowWindow, GWL_EXSTYLE, HWND_TOPMOST, MB_ICONASTERISK, SWP_SHOWWINDOW, SW_HIDE,
+    ShowWindow, GWL_EXSTYLE, HWND_TOPMOST, MB_ICONASTERISK, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE,
     WS_EX_TOOLWINDOW,
 };
 
@@ -191,6 +191,12 @@ pub fn init(app: &AppHandle) {
 
 pub fn popover_hide_now(app: &AppHandle) {
     *OPEN_FOR.lock().unwrap() = None;
+    with_glance(|g| {
+        g.pinned = false;
+        g.over_dock = false;
+        g.over_popover = false;
+        g.generation += 1;
+    });
     if let Some(h) = popover_hwnd(app) {
         unsafe {
             let _ = ShowWindow(h, SW_HIDE);
@@ -198,28 +204,37 @@ pub fn popover_hide_now(app: &AppHandle) {
     }
 }
 
+/// Hover-glance state. A popover opened by hovering is "unpinned": it closes
+/// shortly after the pointer leaves both the widget and the popover. Clicking
+/// the widget or into the popover pins it; then it closes on click-away.
+#[derive(Default)]
+struct Glance {
+    pinned: bool,
+    over_dock: bool,
+    over_popover: bool,
+    generation: u64,
+}
+
+static GLANCE: std::sync::Mutex<Option<Glance>> = std::sync::Mutex::new(None);
+
+fn with_glance<R>(f: impl FnOnce(&mut Glance) -> R) -> R {
+    f(GLANCE.lock().unwrap().get_or_insert_with(Glance::default))
+}
+
+/// The popover took focus (the user clicked into it): keep it open.
+pub fn popover_focused() {
+    with_glance(|g| g.pinned = true);
+}
+
 #[derive(Clone, Serialize)]
 struct PopoverOpen {
     id: String,
 }
 
-/// Open the expanded view of widget `id` above it (CSS px sizes), or close it
-/// if it is already open for that widget.
-#[tauri::command]
-pub fn popover_toggle(
-    app: AppHandle,
-    id: String,
-    anchor_x: f64,
-    width: f64,
-    height: f64,
-) -> Result<(), String> {
-    let ph = popover_hwnd(&app).ok_or("no popover window")?;
-    let visible = unsafe { IsWindowVisible(ph).as_bool() };
-    if visible && OPEN_FOR.lock().unwrap().as_deref() == Some(id.as_str()) {
-        popover_hide_now(&app);
-        return Ok(());
-    }
-
+/// Place the popover above the widget (CSS px sizes) and show it, taking focus
+/// only when `focus` is set.
+fn show_popover(app: &AppHandle, id: String, anchor_x: f64, width: f64, height: f64, focus: bool) -> Result<(), String> {
+    let ph = popover_hwnd(app).ok_or("no popover window")?;
     let dock_win = app.get_webview_window("main").ok_or("no dock window")?;
     let scale = dock_win.scale_factor().map_err(|e| e.to_string())?;
     let dock_pos = dock_win.outer_position().map_err(|e| e.to_string())?;
@@ -243,10 +258,101 @@ pub fn popover_toggle(
     app.emit_to(POPOVER, "popover-open", PopoverOpen { id })
         .map_err(|e| e.to_string())?;
     unsafe {
-        let _ = SetWindowPos(ph, Some(HWND_TOPMOST), x, y, w, h, SWP_SHOWWINDOW);
-        let _ = SetForegroundWindow(ph);
+        let flags = if focus { SWP_SHOWWINDOW } else { SWP_SHOWWINDOW | SWP_NOACTIVATE };
+        let _ = SetWindowPos(ph, Some(HWND_TOPMOST), x, y, w, h, flags);
+        if focus {
+            let _ = SetForegroundWindow(ph);
+        }
     }
     Ok(())
+}
+
+fn is_open_for(app: &AppHandle, id: &str) -> bool {
+    let visible = popover_hwnd(app).is_some_and(|h| unsafe { IsWindowVisible(h).as_bool() });
+    visible && OPEN_FOR.lock().unwrap().as_deref() == Some(id)
+}
+
+/// Click on a widget: open its details with focus (so you can type), pin a
+/// hover-opened popover, or close it if it was already pinned open.
+#[tauri::command]
+pub fn popover_toggle(
+    app: AppHandle,
+    id: String,
+    anchor_x: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    if is_open_for(&app, &id) {
+        if with_glance(|g| g.pinned) {
+            popover_hide_now(&app);
+        } else {
+            with_glance(|g| g.pinned = true);
+            if let Some(h) = popover_hwnd(&app) {
+                unsafe {
+                    let _ = SetForegroundWindow(h);
+                }
+            }
+        }
+        return Ok(());
+    }
+    with_glance(|g| {
+        g.pinned = true;
+        g.generation += 1;
+    });
+    show_popover(&app, id, anchor_x, width, height, true)
+}
+
+/// Hover glance: the pointer has rested on a widget. Shows its details without
+/// taking focus, unless a pinned popover is already open.
+#[tauri::command]
+pub fn popover_glance(
+    app: AppHandle,
+    id: String,
+    anchor_x: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    if !settings::get().glance {
+        return Ok(());
+    }
+    let pinned_open = OPEN_FOR.lock().unwrap().is_some() && with_glance(|g| g.pinned);
+    if pinned_open {
+        return Ok(());
+    }
+    with_glance(|g| {
+        g.over_dock = true;
+        g.generation += 1;
+    });
+    if is_open_for(&app, &id) {
+        return Ok(());
+    }
+    show_popover(&app, id, anchor_x, width, height, false)
+}
+
+/// The pointer entered or left a widget (`source = "dock"`) or the popover.
+/// An unpinned popover hides shortly after the pointer is over neither.
+#[tauri::command]
+pub fn popover_hover(app: AppHandle, source: String, inside: bool) {
+    let generation = with_glance(|g| {
+        if source == "dock" {
+            g.over_dock = inside;
+        } else {
+            g.over_popover = inside;
+        }
+        g.generation += 1;
+        g.generation
+    });
+    if inside {
+        return;
+    }
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        let close = with_glance(|g| g.generation == generation && !g.pinned && !g.over_dock && !g.over_popover);
+        if close {
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || popover_hide_now(&app2));
+        }
+    });
 }
 
 #[tauri::command]

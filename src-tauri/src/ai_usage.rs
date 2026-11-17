@@ -7,7 +7,7 @@
 //! - `openai`: OpenAI API spend this month, from the organization costs API with
 //!   an admin key.
 //! - `deepseek`: account balance, with a normal API key.
-//! - `claude_code` (experimental, off unless chosen): Claude plan limits read with
+//! - `claude_code`: Claude plan limits (Session, Weekly) read with
 //!   Claude Code's own sign-in on this PC, from an internal endpoint that can
 //!   change without notice. The token is read from Claude Code's file, used for
 //!   one request to api.anthropic.com, and never stored or shown.
@@ -103,7 +103,11 @@ fn http_error(provider: &str, e: ureq::Error) -> String {
             format!("{provider} refused the key. Check it's the right kind of key and paste it again.")
         }
         ureq::Error::Status(404, _) => format!("{provider} doesn't offer this report to this account."),
-        ureq::Error::Status(429, _) => format!("{provider} asked us to slow down; will try again later."),
+        ureq::Error::Status(429, resp) => {
+            // Tagged so the caller can back off for as long as the service asks.
+            let secs = resp.header("retry-after").and_then(|v| v.trim().parse::<u64>().ok()).unwrap_or(0);
+            format!("{RATE_LIMITED}{secs}|{provider} asked us to slow down for a while.")
+        }
         ureq::Error::Status(code, _) => format!("{provider} returned an error ({code})."),
         ureq::Error::Transport(_) => format!("Can't reach {provider}. Check the internet connection."),
     }
@@ -322,7 +326,7 @@ fn claude_code() -> Result<Reading, String> {
         })
         .collect();
     if meters.is_empty() {
-        return Err("The plan-limits endpoint changed shape; this experimental reader no longer understands it.".into());
+        return Err("Anthropic changed how plan limits are reported; this version can't read them.".into());
     }
     // Shortest window first: it is the one that runs out soonest.
     meters.sort_by_key(|m| if m.label == "Session" { 0 } else { 1 });
@@ -338,8 +342,158 @@ fn claude_code() -> Result<Reading, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Pacing: at most one request a minute per source, and back off when told to
+// ---------------------------------------------------------------------------
+
+const RATE_LIMITED: &str = "~rate-limited~";
+const MIN_GAP: std::time::Duration = std::time::Duration::from_secs(55);
+const MAX_BACKOFF: u64 = 15 * 60;
+
+#[derive(Default)]
+struct Pace {
+    last_ok: Option<(std::time::Instant, Reading)>,
+    backoff_until: Option<std::time::Instant>,
+    strikes: u32,
+}
+
+static PACE: std::sync::Mutex<Option<std::collections::HashMap<String, Pace>>> = std::sync::Mutex::new(None);
+
+fn with_pace<R>(source: &str, f: impl FnOnce(&mut Pace) -> R) -> R {
+    let mut guard = PACE.lock().unwrap();
+    f(guard.get_or_insert_with(Default::default).entry(source.to_string()).or_default())
+}
+
+/// Run `fetch` unless this source was read under a minute ago (reuse that) or
+/// is backing off after a slow-down reply (then say when it tries again).
+fn throttled(source: &str, fetch: impl FnOnce() -> Result<Reading, String>) -> Result<Reading, String> {
+    let now = std::time::Instant::now();
+    let early = with_pace(source, |p| {
+        if let Some((at, r)) = &p.last_ok {
+            if now.duration_since(*at) < MIN_GAP {
+                return Some(Ok(r.clone()));
+            }
+        }
+        if let Some(until) = p.backoff_until {
+            if until > now {
+                let mins = (until - now).as_secs().div_ceil(60);
+                return Some(Err(format!(
+                    "Paused: the service asked us to slow down. Trying again in {mins} min."
+                )));
+            }
+        }
+        None
+    });
+    if let Some(answer) = early {
+        return answer;
+    }
+    match fetch() {
+        Ok(r) => {
+            with_pace(source, |p| {
+                p.last_ok = Some((std::time::Instant::now(), r.clone()));
+                p.backoff_until = None;
+                p.strikes = 0;
+            });
+            Ok(r)
+        }
+        Err(e) if e.starts_with(RATE_LIMITED) => {
+            let rest = &e[RATE_LIMITED.len()..];
+            let (secs, message) = rest.split_once('|').unwrap_or(("0", rest));
+            let asked = secs.parse::<u64>().unwrap_or(0);
+            let wait = with_pace(source, |p| {
+                p.strikes += 1;
+                // Honour Retry-After; otherwise 1, 2, 4, 8 ... minutes, at most 15.
+                let wait = if asked > 0 { asked } else { 60u64 << (p.strikes - 1).min(4) };
+                let wait = wait.min(MAX_BACKOFF);
+                p.backoff_until = Some(std::time::Instant::now() + std::time::Duration::from_secs(wait));
+                wait
+            });
+            Err(format!("{message} Trying again in {} min.", wait.div_ceil(60)))
+        }
+        Err(e) => Err(e),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Service icons
+// ---------------------------------------------------------------------------
+
+/// Each service's own site icon, fetched once from that service and cached on
+/// disk, so no logo files ship with the app.
+fn icon_sources(service: &str) -> &'static [&'static str] {
+    match service {
+        "claude" | "claude_code" | "anthropic" => &[
+            "https://claude.ai/apple-touch-icon.png",
+            "https://claude.ai/favicon.ico",
+        ],
+        "openai" | "chatgpt" => &[
+            "https://chatgpt.com/apple-touch-icon.png",
+            "https://openai.com/favicon.ico",
+        ],
+        "deepseek" => &[
+            "https://chat.deepseek.com/favicon.svg",
+            "https://www.deepseek.com/favicon.ico",
+        ],
+        _ => &[],
+    }
+}
+
+static ICON_CACHE: std::sync::Mutex<Option<std::collections::HashMap<String, Option<String>>>> =
+    std::sync::Mutex::new(None);
+
+fn fetch_icon(url: &str) -> Option<String> {
+    use base64::Engine;
+    use std::io::Read;
+    let resp = agent().get(url).call().ok()?;
+    let mime = resp.content_type().to_string();
+    if !mime.starts_with("image/") {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    resp.into_reader().take(512 * 1024).read_to_end(&mut bytes).ok()?;
+    if bytes.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    ))
+}
+
+#[tauri::command]
+pub async fn service_icon(service: String) -> Option<String> {
+    let key: String = service.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+    if let Some(hit) = ICON_CACHE.lock().unwrap().get_or_insert_with(Default::default).get(&key) {
+        return hit.clone();
+    }
+    let file = taskbar::data_dir().join("icons").join(format!("{key}.txt"));
+    let found = match fs::read_to_string(&file) {
+        Ok(cached) if cached.starts_with("data:image/") => Some(cached),
+        _ => {
+            let sources = icon_sources(&key);
+            let fetched = tauri::async_runtime::spawn_blocking(move || {
+                sources.iter().find_map(|u| fetch_icon(u))
+            })
+            .await
+            .ok()
+            .flatten();
+            if let Some(data) = &fetched {
+                let _ = fs::create_dir_all(file.parent().unwrap());
+                let _ = fs::write(&file, data);
+            }
+            fetched
+        }
+    };
+    ICON_CACHE
+        .lock()
+        .unwrap()
+        .get_or_insert_with(Default::default)
+        .insert(key, found.clone());
+    found
+}
 
 #[tauri::command]
 pub fn ai_key_status(id: String) -> bool {
@@ -368,18 +522,23 @@ pub fn ai_claude_code_found() -> bool {
 /// Fetch a fresh reading; on failure return the last good one marked stale.
 #[tauri::command]
 pub async fn ai_usage_fetch(id: String, provider: String) -> UsageResult {
+    // Claude plan limits belong to the account, not the widget: every Claude
+    // widget shares one request. Key-based services are per widget (per key).
+    let source = if provider == "claude_code" { provider.clone() } else { id.clone() };
     let id2 = id.clone();
     let attempt = tauri::async_runtime::spawn_blocking(move || -> Result<Reading, String> {
-        if provider == "claude_code" {
-            return claude_code();
-        }
-        let key = secrets::load(&id2).ok_or("Add a key to start.")?;
-        match provider.as_str() {
-            "anthropic" => anthropic(&key),
-            "openai" => openai(&key),
-            "deepseek" => deepseek(&key),
-            other => Err(format!("Unknown provider {other}.")),
-        }
+        throttled(&source, || {
+            if provider == "claude_code" {
+                return claude_code();
+            }
+            let key = secrets::load(&id2).ok_or("Add a key to start.")?;
+            match provider.as_str() {
+                "anthropic" => anthropic(&key),
+                "openai" => openai(&key),
+                "deepseek" => deepseek(&key),
+                other => Err(format!("Unknown provider {other}.")),
+            }
+        })
     })
     .await
     .unwrap_or_else(|e| Err(e.to_string()));
