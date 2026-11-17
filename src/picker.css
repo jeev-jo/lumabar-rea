@@ -1,0 +1,416 @@
+/* Widget picker: sidebar of categories, live preview cards, and the dock strip. */
+
+html.picker-page,
+html.picker-page body,
+html.picker-page #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.picker2 {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+}
+
+.glyph {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-weight: 400;
+}
+
+/* ---- sidebar ---- */
+
+.picker2 aside {
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-right: 1px solid var(--border);
+  background: var(--card-bg);
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 36px;
+  border-radius: 18px;
+  background: var(--hover);
+  border: 1px solid var(--border);
+  box-shadow: var(--highlight);
+}
+
+.search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.search .glyph {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.picker2 nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.picker2 nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.picker2 nav button:hover {
+  background: var(--hover);
+}
+
+.picker2 nav button.on {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--highlight);
+}
+
+.picker2 nav .glyph {
+  width: 18px;
+  font-size: 15px;
+  text-align: center;
+}
+
+.picker2 nav .label {
+  flex: 1;
+}
+
+.picker2 nav .count {
+  font-size: 11px;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- main ---- */
+
+.picker2 main {
+  overflow: auto;
+  padding: 18px 24px 28px;
+}
+
+.picker2 header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.picker2 h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.picker2 header .sub {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--hover);
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.picker2 section {
+  margin-bottom: 22px;
+}
+
+.picker2 h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.picker2 h2 .glyph {
+  color: var(--accent);
+}
+
+/* ---- dock strip ---- */
+
+.dock-strip,
+.strip-empty {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--highlight);
+}
+
+.strip-empty {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.strip-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  --btn: 42px;
+}
+
+.strip-item {
+  position: relative;
+  border-radius: 12px;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  cursor: grab;
+}
+
+.strip-item .widget {
+  pointer-events: none;
+}
+
+.strip-item:hover .widget {
+  background: var(--active);
+}
+
+.strip-item.selected {
+  outline-color: var(--accent);
+}
+
+.strip-item.over {
+  outline: 2px dashed var(--accent);
+}
+
+.remove-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--page-bg);
+  border-radius: 50%;
+  background: var(--critical);
+  color: #fff;
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 8px;
+  opacity: 0;
+  transition: opacity 120ms;
+  cursor: default;
+}
+
+.strip-item:hover .remove-badge,
+.strip-item.selected .remove-badge,
+.remove-badge:focus-visible {
+  opacity: 1;
+}
+
+.strip-toolbar {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.strip-toolbar .sep {
+  width: 1px;
+  height: 20px;
+  background: var(--divider);
+}
+
+.strip-toolbar button,
+.pcard-actions .add {
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--border);
+  background: var(--hover);
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: default;
+}
+
+.strip-toolbar button:hover:not(:disabled) {
+  background: var(--active);
+}
+
+.strip-toolbar button:disabled {
+  opacity: 0.35;
+}
+
+.strip-toolbar .icon {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 11px;
+  padding: 5px 9px;
+}
+
+.strip-toolbar .danger:hover {
+  background: var(--critical);
+  border-color: var(--critical);
+  color: #fff;
+}
+
+/* ---- size chips ---- */
+
+.chips {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 8px;
+  background: var(--hover);
+}
+
+.chips button {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.chips button:hover {
+  background: var(--hover);
+}
+
+.chips button.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ---- widget cards ---- */
+
+.pgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.pcard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--highlight);
+  transition: transform 140ms, border-color 140ms;
+}
+
+.pcard:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+/* A slice of dock behind the live tile, larger than life. */
+.stage {
+  height: 104px;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 140% at 50% 0%, var(--hover), transparent 70%);
+  border-bottom: 1px solid var(--border);
+}
+
+.bar-sample {
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--highlight);
+  transform: scale(1.25);
+  --btn: 42px;
+}
+
+.pcard-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.pcard-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.pcard-body p {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.7;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.pcard-actions {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pcard-actions .add {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  font-family: "Segoe Fluent Icons", "Segoe UI Variable", "Segoe UI", sans-serif;
+}
+
+.pcard-actions .add.done {
+  background: var(--series-3);
+  border-color: var(--series-3);
+}
+
+.none {
+  opacity: 0.7;
+}
+
+/* The settings page's centred column doesn't apply here. */
+html.picker-page .picker2 main {
+  max-width: none;
+  margin: 0;
+  padding: 18px 24px 28px;
+}
+
+html.picker-page .picker2 header {
+  margin-bottom: 14px;
+}
