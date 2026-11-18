@@ -39,7 +39,7 @@ pub struct Meter {
     pub resets_at: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Reading {
     pub provider: String,
     /// Short text for the dock tile, e.g. "$12.40" or "42%".
@@ -53,6 +53,33 @@ pub struct Reading {
     pub data_as_of: Option<String>,
     /// When this reading was taken (ms since epoch).
     pub fetched_at: u64,
+    /// Points for a small line chart, oldest first (e.g. revenue per day).
+    #[serde(default)]
+    pub series: Vec<f64>,
+    /// What each point is (e.g. "Nov 3"), same length as `series` or empty.
+    #[serde(default)]
+    pub series_labels: Vec<String>,
+    /// The headline as a plain number, for totals across widgets.
+    #[serde(default)]
+    pub value: Option<f64>,
+    /// Currency of `value`, when it is money.
+    #[serde(default)]
+    pub currency: Option<String>,
+    /// A short list for the details view (issues, emails, tickers...).
+    #[serde(default)]
+    pub items: Vec<Item>,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct Item {
+    pub title: String,
+    #[serde(default)]
+    pub detail: String,
+    #[serde(default)]
+    pub value: String,
+    /// Opened in the browser when clicked (https only).
+    #[serde(default)]
+    pub url: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -65,7 +92,7 @@ pub struct UsageResult {
     pub stale: bool,
 }
 
-fn now_ms() -> u64 {
+pub(crate) fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
@@ -94,7 +121,7 @@ pub fn forget(id: &str) {
     let _ = fs::remove_file(cache_path(id));
 }
 
-fn agent() -> ureq::Agent {
+pub(crate) fn agent() -> ureq::Agent {
     ureq::AgentBuilder::new()
         .timeout(Duration::from_secs(15))
         .user_agent("luma-ai-bar")
@@ -102,7 +129,7 @@ fn agent() -> ureq::Agent {
 }
 
 /// Turn an HTTP failure into a sentence a person can act on.
-fn http_error(provider: &str, e: ureq::Error) -> String {
+pub(crate) fn http_error(provider: &str, e: ureq::Error) -> String {
     match e {
         ureq::Error::Status(401, _) | ureq::Error::Status(403, _) => {
             format!("{provider} refused the key. Check it's the right kind of key and paste it again.")
@@ -136,7 +163,7 @@ fn month_start() -> (String, i64) {
     (format!("{year:04}-{month:02}-01T00:00:00Z"), start)
 }
 
-fn money(dollars: f64) -> String {
+pub(crate) fn money(dollars: f64) -> String {
     if dollars >= 1000.0 {
         format!("${:.0}", dollars)
     } else {
@@ -145,7 +172,7 @@ fn money(dollars: f64) -> String {
 }
 
 /// Sum every `field` (a number or a numeric string) found anywhere inside `v`.
-fn sum_field(v: &Value, field: &str) -> f64 {
+pub(crate) fn sum_field(v: &Value, field: &str) -> f64 {
     match v {
         Value::Object(m) => m
             .iter()
@@ -202,6 +229,7 @@ fn anthropic(key: &str) -> Result<Reading, String> {
         meters: vec![],
         data_as_of,
         fetched_at: now_ms(),
+        ..Default::default()
     })
 }
 
@@ -227,6 +255,7 @@ fn openai(key: &str) -> Result<Reading, String> {
         meters: vec![],
         data_as_of: None,
         fetched_at: now_ms(),
+        ..Default::default()
     })
 }
 
@@ -266,10 +295,11 @@ fn deepseek(key: &str) -> Result<Reading, String> {
         meters: vec![],
         data_as_of: None,
         fetched_at: now_ms(),
+        ..Default::default()
     })
 }
 
-fn num(v: &Value, field: &str) -> Option<f64> {
+pub(crate) fn num(v: &Value, field: &str) -> Option<f64> {
     match v.get(field)? {
         Value::Number(n) => n.as_f64(),
         Value::String(s) => s.parse().ok(),
@@ -310,7 +340,7 @@ fn openrouter(key: &str) -> Result<Reading, String> {
     if d.get("is_free_tier").and_then(|v| v.as_bool()) == Some(true) {
         lines.push(("Tier".into(), "Free".into()));
     }
-    Ok(Reading { provider: "openrouter".into(), headline, caption, lines, meters, data_as_of: None, fetched_at: now_ms() })
+    Ok(Reading { provider: "openrouter".into(), headline, caption, lines, meters, data_as_of: None, fetched_at: now_ms(), ..Default::default() })
 }
 
 fn kimi(key: &str) -> Result<Reading, String> {
@@ -349,11 +379,12 @@ fn kimi(key: &str) -> Result<Reading, String> {
         meters: vec![],
         data_as_of: None,
         fetched_at: now_ms(),
+        ..Default::default()
     })
 }
 
 /// Seconds since the epoch as RFC 3339 (UTC).
-fn rfc3339(secs: i64) -> String {
+pub(crate) fn rfc3339(secs: i64) -> String {
     let days = secs.div_euclid(86_400);
     let rem = secs.rem_euclid(86_400);
     // Civil date from days since 1970-01-01 (Howard Hinnant's algorithm).
@@ -479,6 +510,7 @@ fn codex() -> Result<Reading, String> {
         meters,
         data_as_of: Some(rfc3339(as_of)),
         fetched_at: now_ms(),
+        ..Default::default()
     })
 }
 
@@ -571,6 +603,7 @@ fn claude_code() -> Result<Reading, String> {
         meters,
         data_as_of: None,
         fetched_at: now_ms(),
+        ..Default::default()
     })
 }
 
@@ -693,8 +726,39 @@ fn icon_sources(service: &str) -> &'static [&'static str] {
         ],
         "openrouter" => &["https://openrouter.ai/apple-touch-icon.png", "https://openrouter.ai/favicon.ico"],
         "kimi" => &["https://www.kimi.com/favicon.ico", "https://platform.moonshot.ai/favicon.ico"],
+        "binance" => &["https://bin.bnbstatic.com/static/images/common/favicon.ico", "https://public.bnbstatic.com/static/images/common/favicon.ico"],
         _ => &[],
     }
+}
+
+/// Site whose own icon stands for a service that has no special sources.
+fn icon_domain(service: &str) -> Option<&'static str> {
+    Some(match service {
+        "stripe" => "stripe.com",
+        "polar" => "polar.sh",
+        "dodo" => "dodopayments.com",
+        "shopify" => "www.shopify.com",
+        "lemonsqueezy" => "www.lemonsqueezy.com",
+        "paddle" => "www.paddle.com",
+        "gumroad" => "gumroad.com",
+        "gemini" => "gemini.google.com",
+        "glm" => "z.ai",
+        "opencode" => "opencode.ai",
+        "binance" => "www.binance.com",
+        "plausible" => "plausible.io",
+        "dub" => "dub.co",
+        "resend" => "resend.com",
+        "linear" => "linear.app",
+        "supabase" => "supabase.com",
+        "github" => "github.com",
+        "leetcode" => "leetcode.com",
+        "gmail" => "mail.google.com",
+        "x" => "x.com",
+        "youtube" => "www.youtube.com",
+        "instagram" => "www.instagram.com",
+        "bing" => "www.bing.com",
+        _ => return None,
+    })
 }
 
 static ICON_CACHE: std::sync::Mutex<Option<std::collections::HashMap<String, Option<String>>>> =
@@ -729,7 +793,11 @@ pub async fn service_icon(service: String) -> Option<String> {
     let found = match fs::read_to_string(&file) {
         Ok(cached) if cached.starts_with("data:image/") => Some(cached),
         _ => {
-            let sources = icon_sources(&key);
+            let mut sources: Vec<String> = icon_sources(&key).iter().map(|s| s.to_string()).collect();
+            if let Some(domain) = icon_domain(&key) {
+                sources.push(format!("https://{domain}/apple-touch-icon.png"));
+                sources.push(format!("https://{domain}/favicon.ico"));
+            }
             let fetched = tauri::async_runtime::spawn_blocking(move || {
                 sources.iter().find_map(|u| fetch_icon(u))
             })
@@ -782,11 +850,13 @@ pub fn ai_codex_found() -> bool {
 
 /// Fetch a fresh reading; on failure return the last good one marked stale.
 #[tauri::command]
-pub async fn ai_usage_fetch(id: String, provider: String, manual: Option<bool>) -> UsageResult {
+pub async fn ai_usage_fetch(id: String, provider: String, manual: Option<bool>, config: Option<Value>) -> UsageResult {
+    let config = config.unwrap_or(Value::Null);
     let manual = manual.unwrap_or(false);
     // Claude plan limits belong to the account, not the widget: every Claude
     // widget shares one request. Key-based services are per widget (per key).
-    let source = if provider == "claude_code" || provider == "codex" { provider.clone() } else { id.clone() };
+    // A changed setting (another ticker, another site) is a different source.
+    let source = if provider == "claude_code" || provider == "codex" { provider.clone() } else { format!("{id}{config}") };
     let id2 = id.clone();
     let attempt = tauri::async_runtime::spawn_blocking(move || -> Result<Reading, String> {
         throttled(&source, manual, || {
@@ -795,6 +865,10 @@ pub async fn ai_usage_fetch(id: String, provider: String, manual: Option<bool>) 
             }
             if provider == "codex" {
                 return codex();
+            }
+            if crate::online::handles(&provider) {
+                let key = secrets::load(&id2);
+                return crate::online::fetch(&provider, key.as_deref(), &config);
             }
             let key = secrets::load(&id2).ok_or("Add a key to start.")?;
             match provider.as_str() {

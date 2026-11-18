@@ -3,6 +3,8 @@ mod apps;
 mod backdrop;
 mod dock;
 mod gadgets;
+mod extras;
+mod online;
 mod glass;
 mod preview;
 mod secrets;
@@ -263,6 +265,25 @@ pub fn run() {
             ai_usage::ai_codex_found,
             ai_usage::ai_usage_fetch,
             ai_usage::service_icon,
+            online::wallpaper_gallery,
+            online::wallpaper_set_gallery,
+            online::online_local_found,
+            online::open_link,
+            extras::language_get,
+            extras::language_next,
+            extras::temperature,
+            extras::brightness_get,
+            extras::brightness_set,
+            extras::radios_status,
+            extras::hotspot_set,
+            extras::airplane_set,
+            extras::open_on_screen_keyboard,
+            extras::recent_files,
+            extras::start_apps,
+            extras::open_shortcut,
+            extras::run_action,
+            extras::search_open,
+            extras::screenshot,
         ])
         .build(tauri::generate_context!())
         .expect("error while building luma-ai-bar")

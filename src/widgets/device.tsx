@@ -291,8 +291,52 @@ export function TogglesPanel() {
       <h3>Quick toggles</h3>
       {row("wifi", "Wi-Fi", s?.wifi)}
       {row("bluetooth", "Bluetooth", s?.bluetooth)}
+      <MoreRadios />
       <p className="fine">Click to switch on or off. The arrow lists networks or devices; the gear opens Quick Settings.</p>
     </div>
+  );
+}
+
+/** Mobile hotspot and airplane mode (every radio off), where this PC has them. */
+function MoreRadios() {
+  const [r, setR] = useState<{ hotspot: boolean | null; airplane: boolean | null } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => invoke<{ hotspot: boolean | null; airplane: boolean | null }>("radios_status").then(setR);
+  useEffect(() => {
+    load();
+  }, []);
+  const flip = (cmd: string, on: boolean) => {
+    setBusy(true);
+    setError(null);
+    invoke(cmd, { on })
+      .catch((e) => setError(String(e)))
+      .finally(() => {
+        setBusy(false);
+        load();
+      });
+  };
+  const row = (glyph: string, label: string, on: boolean | null | undefined, cmd: string) =>
+    on == null ? null : (
+      <div className="toggle-row">
+        <span className="glyph">{glyph}</span>
+        <span className="name">
+          <b>{label}</b>
+          <small>{on ? "On" : "Off"}</small>
+        </span>
+        <span className={`pill-toggle${on ? " on" : ""}`}>
+          <button className="glyph main" disabled={busy} aria-pressed={on} aria-label={`${label} ${on ? "on" : "off"}`} onClick={() => flip(cmd, !on)}>
+            {glyph}
+          </button>
+        </span>
+      </div>
+    );
+  return (
+    <>
+      {row("", "Mobile hotspot", r?.hotspot, "hotspot_set")}
+      {row("", "Airplane mode", r?.airplane, "airplane_set")}
+      {error && <p className="error">{error}</p>}
+    </>
   );
 }
 

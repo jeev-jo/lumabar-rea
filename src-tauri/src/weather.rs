@@ -15,6 +15,20 @@ pub struct Day {
     pub code: i32,
     pub max: f64,
     pub min: f64,
+    /// Local times, "2026-11-18T06:52".
+    pub sunrise: String,
+    pub sunset: String,
+    /// Chance of rain, 0–100.
+    pub rain_chance: f64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct Hour {
+    /// Local time, "2026-11-18T14:00".
+    pub time: String,
+    pub temperature: f64,
+    pub code: i32,
+    pub rain_chance: f64,
 }
 
 #[derive(Clone, Serialize)]
@@ -22,7 +36,16 @@ pub struct Weather {
     pub temperature: f64,
     pub code: i32,
     pub is_day: bool,
+    pub feels_like: f64,
+    pub humidity: f64,
+    pub wind: f64,
+    /// "km/h" or "mph"
+    pub wind_unit: String,
+    /// The current local time at the place, "2026-11-18T14:15".
+    pub local_time: String,
     pub days: Vec<Day>,
+    /// The next 12 hours, starting with this one.
+    pub hours: Vec<Hour>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -47,6 +70,16 @@ fn agent() -> ureq::Agent {
 struct ForecastResponse {
     current: Current,
     daily: Daily,
+    hourly: Hourly,
+}
+
+#[derive(Deserialize)]
+struct Hourly {
+    time: Vec<String>,
+    temperature_2m: Vec<f64>,
+    weather_code: Vec<i32>,
+    #[serde(default)]
+    precipitation_probability: Vec<Option<f64>>,
 }
 
 #[derive(Deserialize)]
@@ -54,6 +87,13 @@ struct Current {
     temperature_2m: f64,
     weather_code: i32,
     is_day: i32,
+    time: String,
+    #[serde(default)]
+    apparent_temperature: f64,
+    #[serde(default)]
+    relative_humidity_2m: f64,
+    #[serde(default)]
+    wind_speed_10m: f64,
 }
 
 #[derive(Deserialize)]
@@ -62,6 +102,12 @@ struct Daily {
     weather_code: Vec<i32>,
     temperature_2m_max: Vec<f64>,
     temperature_2m_min: Vec<f64>,
+    #[serde(default)]
+    sunrise: Vec<String>,
+    #[serde(default)]
+    sunset: Vec<String>,
+    #[serde(default)]
+    precipitation_probability_max: Vec<Option<f64>>,
 }
 
 fn fetch(lat: f64, lon: f64, fahrenheit: bool) -> Result<Weather, String> {
@@ -69,10 +115,12 @@ fn fetch(lat: f64, lon: f64, fahrenheit: bool) -> Result<Weather, String> {
         .get("https://api.open-meteo.com/v1/forecast")
         .query("latitude", &format!("{lat:.3}"))
         .query("longitude", &format!("{lon:.3}"))
-        .query("current", "temperature_2m,weather_code,is_day")
-        .query("daily", "weather_code,temperature_2m_max,temperature_2m_min")
+        .query("current", "temperature_2m,weather_code,is_day,apparent_temperature,relative_humidity_2m,wind_speed_10m")
+        .query("daily", "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max")
+        .query("hourly", "temperature_2m,weather_code,precipitation_probability")
+        .query("wind_speed_unit", if fahrenheit { "mph" } else { "kmh" })
         .query("timezone", "auto")
-        .query("forecast_days", "5")
+        .query("forecast_days", "7")
         .query("temperature_unit", if fahrenheit { "fahrenheit" } else { "celsius" })
         .call()
         .map_err(|e| format!("weather service unreachable: {e}"))?
@@ -85,13 +133,34 @@ fn fetch(lat: f64, lon: f64, fahrenheit: bool) -> Result<Weather, String> {
             code: *d.weather_code.get(i).unwrap_or(&0),
             max: *d.temperature_2m_max.get(i).unwrap_or(&0.0),
             min: *d.temperature_2m_min.get(i).unwrap_or(&0.0),
+            sunrise: d.sunrise.get(i).cloned().unwrap_or_default(),
+            sunset: d.sunset.get(i).cloned().unwrap_or_default(),
+            rain_chance: d.precipitation_probability_max.get(i).copied().flatten().unwrap_or(0.0),
+        })
+        .collect();
+    // Hours from the current one on; times are the place's local time.
+    let h = r.hourly;
+    let this_hour = r.current.time.get(0..13).unwrap_or("").to_string();
+    let start = h.time.iter().position(|t| t.starts_with(&this_hour)).unwrap_or(0);
+    let hours = (start..(start + 12).min(h.time.len()))
+        .map(|i| Hour {
+            time: h.time[i].clone(),
+            temperature: *h.temperature_2m.get(i).unwrap_or(&0.0),
+            code: *h.weather_code.get(i).unwrap_or(&0),
+            rain_chance: h.precipitation_probability.get(i).copied().flatten().unwrap_or(0.0),
         })
         .collect();
     Ok(Weather {
         temperature: r.current.temperature_2m,
         code: r.current.weather_code,
         is_day: r.current.is_day == 1,
+        feels_like: r.current.apparent_temperature,
+        humidity: r.current.relative_humidity_2m,
+        wind: r.current.wind_speed_10m,
+        wind_unit: if fahrenheit { "mph" } else { "km/h" }.into(),
+        local_time: r.current.time.clone(),
         days,
+        hours,
     })
 }
 

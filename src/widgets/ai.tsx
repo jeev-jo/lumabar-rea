@@ -105,9 +105,9 @@ const DEMO: Record<Provider, UsageResult> = {
   kimi: demo("kimi", "$4.60", "Kimi balance"),
 };
 
-const time = (ms: number | string) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+export const time = (ms: number | string) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-function until(iso: string | null) {
+export function until(iso: string | null) {
   if (!iso) return "";
   const mins = Math.round((new Date(iso).getTime() - Date.now()) / 60_000);
   if (Number.isNaN(mins)) return "";
@@ -120,7 +120,7 @@ function until(iso: string | null) {
 
 const level = (p: number) => (p >= 90 ? "critical" : p >= 70 ? "warning" : "ok");
 
-function MeterBar({ m, thin }: { m: Meter; thin?: boolean }) {
+export function MeterBar({ m, thin }: { m: Meter; thin?: boolean }) {
   return (
     <span className={`meter ${level(m.percent)}${thin ? " thin" : ""}`}>
       <i style={{ width: `${Math.max(2, m.percent)}%` }} />
@@ -226,7 +226,7 @@ function Tile({ instance, preview, provider }: WidgetProps<AiConfig> & { provide
   );
 }
 
-function KeyForm({ id, svc, onSaved }: { id: string; svc: Service; onSaved: () => void }) {
+export function KeyForm({ id, svc, onSaved }: { id: string; svc: Pick<Service, "keyHint"> & { keyLabel?: string }; onSaved: () => void }) {
   const [has, setHas] = useState<boolean | null>(null);
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -238,10 +238,10 @@ function KeyForm({ id, svc, onSaved }: { id: string; svc: Service; onSaved: () =
     return (
       <div className="key-row">
         <span>
-          <span className="glyph ok">{""}</span> Key saved, encrypted on this PC
+          <span className="glyph ok">{""}</span> {svc.keyLabel ? svc.keyLabel[0].toUpperCase() + svc.keyLabel.slice(1) : "Key"} saved, encrypted on this PC
         </span>
         <button className="link" onClick={() => invoke("ai_clear_key", { id }).then(() => setHas(false))}>
-          Remove key
+          Remove {svc.keyLabel ?? "key"}
         </button>
       </div>
     );
@@ -261,7 +261,7 @@ function KeyForm({ id, svc, onSaved }: { id: string; svc: Service; onSaved: () =
           .catch((err) => setError(String(err)));
       }}
     >
-      <input type="password" autoComplete="off" spellCheck={false} placeholder="Paste key" value={key} onChange={(e) => setKey(e.target.value)} />
+      <input type="password" autoComplete="off" spellCheck={false} placeholder={svc.keyLabel ? `Paste ${svc.keyLabel}` : "Paste key"} value={key} onChange={(e) => setKey(e.target.value)} />
       <button className="primary" disabled={!key.trim()}>
         Save
       </button>

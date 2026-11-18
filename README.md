@@ -16,12 +16,21 @@ Built with [Tauri 2](https://tauri.app) (Rust + WebView2) and React. It's an ind
 
 **Widgets**, on the left or right of the apps, in three sizes. Rest the pointer on one to glance at its details, or click to keep them open.
 
+109 widgets in 13 groups:
+
 | | |
 |---|---|
-| **AI** | Claude plan limits (Session and Weekly), Claude API spend, OpenAI spend, DeepSeek balance |
-| **System** | CPU, memory and network graphs; battery; Wi-Fi and Bluetooth toggles; screen time (synced with Windows' own record) |
-| **Media** | Now playing, speaker volume, wallpaper (with *Next background* for Windows Spotlight and slideshows) |
-| **Clocks and productivity** | World clock, weather, to-do, notes, pomodoro |
+| **AI** | Claude, ChatGPT (via Codex CLI) and Gemini CLI plan limits, AI limits side by side, GLM Coding Plan, OpenCode, Claude API and OpenAI spend, DeepSeek, OpenRouter and Kimi balances |
+| **System** | CPU, memory and network, top CPU and memory apps, temperature, brightness, four battery looks, Wi-Fi, Bluetooth, hotspot and airplane mode, keyboard language, light or dark, notifications, on-screen keyboard, show desktop, day, month and year progress |
+| **Media** | Now playing (four looks), speakers, microphone, wallpaper (with *Next background* for Windows Spotlight and slideshows) |
+| **Clocks** | Clock, flip clock, segment clock, analog, world clocks, world time, date, day number, today, clock and weather, 7 days |
+| **Weather** | Weather, details, today and forecast, status, hourly, sunrise and sunset |
+| **Productivity** | Screen time (synced with Windows' own record), day timeline, to-do, notes, pomodoro, timer, stopwatch, calendar (iCal address), currency, progress |
+| **Apps & Files** | Apps, recently opened, search, commands, screenshot, storage, Recycle Bin |
+| **Online & Mail** | Wallpaper gallery, mail (IMAP with an app password), GitHub activity, notifications and overview, LeetCode |
+| **Finance** | Total revenue, plus Stripe, Polar, Dodo Payments, Shopify, Lemon Squeezy, Paddle and Gumroad, each as a number or a chart |
+| **Stocks** | Stock, watchlist, crypto |
+| **Analytics, Developer, Social** | Plausible, Dub; Resend, Linear, Supabase; X, YouTube, Instagram |
 
 <p>
   <img src="docs/screenshots/claude.png" width="300" alt="Claude plan limits details">
@@ -52,7 +61,7 @@ The dock always restores the Windows taskbar when it quits, including after a cr
 ## Privacy
 
 Everything stays on your PC.
-- **API keys** for the AI widgets are encrypted with Windows DPAPI under your account.
+- **API keys** (and app passwords and calendar addresses) for online widgets are encrypted with Windows DPAPI under your account, and only sent to the service they belong to.
 - **Claude plan limits** are read from Claude Code's own sign-in file. The token is only read, never stored or shown.
 - **Screen time** is counted locally.
 

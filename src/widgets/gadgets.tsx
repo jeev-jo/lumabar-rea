@@ -22,7 +22,7 @@ const G = {
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 const settingsPage = (page: string) => invoke("open_ms_settings", { page }).catch(console.error);
 
-function bytes(n: number) {
+export function bytes(n: number) {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
   while (n >= 1024 && i < units.length - 1) {
@@ -33,7 +33,7 @@ function bytes(n: number) {
 }
 
 /** Ask Rust for a value now and every `ms` while the widget is shown. */
-function usePoll<T>(command: string, ms: number, demo: T, preview?: boolean) {
+export function usePoll<T>(command: string, ms: number, demo: T, preview?: boolean) {
   const [value, setValue] = useState<T | null>(preview ? demo : null);
   const load = useCallback(() => {
     if (!preview) invoke<T>(command).then(setValue).catch(() => {});
@@ -149,7 +149,7 @@ const DEMO_DRIVES: Drive[] = [{ letter: "C:", label: "Windows", total: 512e9, fr
 const used = (d: Drive) => Math.round(((d.total - d.free) / d.total) * 100);
 const level = (p: number) => (p >= 90 ? "critical" : p >= 75 ? "warning" : "ok");
 
-function Ring({ percent, size = 24 }: { percent: number; size?: number }) {
+export function Ring({ percent, size = 24 }: { percent: number; size?: number }) {
   const r = (size - 4) / 2;
   const c = 2 * Math.PI * r;
   return (

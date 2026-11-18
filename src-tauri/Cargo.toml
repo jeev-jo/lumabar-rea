@@ -26,10 +26,13 @@ windows = { version = "0.61", features = [
   "Foundation",
   "Foundation_Collections",
   "Media_Control",
+  "Networking_Connectivity",
+  "Networking_NetworkOperators",
   "Storage_Streams",
   "Win32_Devices_FunctionDiscovery",
   "Win32_Foundation",
   "Win32_Graphics_Dwm",
+  "Win32_Globalization",
   "Win32_Graphics_Gdi",
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",
@@ -44,6 +47,7 @@ windows = { version = "0.61", features = [
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_LibraryLoader",
   "Win32_System_Power",
+  "Win32_System_Performance",
   "Win32_System_ProcessStatus",
   "Win32_System_Registry",
   "Win32_System_SystemInformation",
@@ -60,6 +64,7 @@ tauri-plugin-global-shortcut = "2"
 png = "0.18"
 base64 = "0.22"
 ureq = { version = "2", features = ["json"] }
+native-tls = "0.2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 

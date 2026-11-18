@@ -18,6 +18,13 @@ const GLYPH: Record<Category, string> = {
   Productivity: "",
   System: "",
   Weather: "",
+  Analytics: "",
+  "Apps & Files": "",
+  Developer: "",
+  Finance: "",
+  "Online & Mail": "",
+  Social: "",
+  Stocks: "",
 };
 
 const TITLE: Record<Category, string> = {
@@ -28,6 +35,13 @@ const TITLE: Record<Category, string> = {
   Productivity: "Productivity",
   System: "System",
   Weather: "Weather",
+  Analytics: "Analytics",
+  "Apps & Files": "Apps & Files",
+  Developer: "Developer",
+  Finance: "Finance",
+  "Online & Mail": "Online & Mail",
+  Social: "Social",
+  Stocks: "Stocks",
 };
 
 function Tile({ instance, preview }: { instance: WidgetInstance; preview?: boolean }) {
