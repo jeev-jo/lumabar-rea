@@ -379,13 +379,12 @@ pub fn theme_set(mode: String) -> Result<&'static str, String> {
 // Show desktop, Task Manager
 // ---------------------------------------------------------------------------
 
-/// Minimise everything (or bring it back), like the corner of the Windows taskbar.
+/// Minimise everything (or bring it back), like the corner of the Windows
+/// taskbar. Done window by window rather than with Win+D, which would hide the
+/// dock along with every other app.
 #[tauri::command]
-pub fn show_desktop() {
-    crate::system::chord(&[
-        windows::Win32::UI::Input::KeyboardAndMouse::VK_LWIN,
-        windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(b'D' as u16),
-    ]);
+pub async fn show_desktop() {
+    crate::apps::toggle_desktop();
 }
 
 #[tauri::command]

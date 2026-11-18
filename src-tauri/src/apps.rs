@@ -50,7 +50,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     ShowWindow, EVENT_OBJECT_CLOAKED, EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY,
     EVENT_OBJECT_HIDE, EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_SHOW, EVENT_OBJECT_UNCLOAKED,
     EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GA_PARENT,
-    GWL_EXSTYLE, GW_OWNER, OBJID_WINDOW, SW_MINIMIZE, SW_RESTORE, SW_SHOWNORMAL,
+    GWL_EXSTYLE, GW_OWNER, OBJID_WINDOW, SW_MINIMIZE, SW_RESTORE, SW_SHOWMINNOACTIVE, SW_SHOWNOACTIVATE, SW_SHOWNORMAL,
     WINEVENT_OUTOFCONTEXT, WM_CLOSE, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
 };
 
@@ -751,6 +751,41 @@ pub(crate) fn focus(hwnd: HWND) {
             let _ = AttachThreadInput(me, fg_thread, false);
         }
     }
+}
+
+/// Windows minimised by the last Show desktop, top first.
+static DESKTOP_SHOWN: Mutex<Vec<isize>> = Mutex::new(Vec::new());
+
+/// Show desktop: minimise every open window; a second click, while nothing
+/// has been opened or restored since, brings the same windows back.
+pub(crate) fn toggle_desktop() {
+    let wins = collect_windows();
+    let mut shown = DESKTOP_SHOWN.lock().unwrap();
+    let open: Vec<&Win> = wins.iter().filter(|w| !w.minimized).collect();
+    if open.is_empty() && !shown.is_empty() {
+        // Bottom first, so the window that was on top ends up on top again.
+        let still: HashSet<isize> = wins.iter().map(|w| w.hwnd).collect();
+        let back: Vec<isize> = shown.drain(..).filter(|h| still.contains(h)).collect();
+        for &h in back.iter().rev() {
+            unsafe {
+                let _ = ShowWindow(HWND(h as *mut c_void), SW_SHOWNOACTIVATE);
+            }
+        }
+        if let Some(&top) = back.first() {
+            focus(HWND(top as *mut c_void));
+        }
+    } else {
+        let mut open = open;
+        open.sort_by_key(|w| w.z);
+        *shown = open.iter().map(|w| w.hwnd).collect();
+        for w in &open {
+            unsafe {
+                let _ = ShowWindow(HWND(w.hwnd as *mut c_void), SW_SHOWMINNOACTIVE);
+            }
+        }
+    }
+    drop(shown);
+    notify();
 }
 
 pub(crate) fn find(key: &str) -> Result<AppEntry, String> {
