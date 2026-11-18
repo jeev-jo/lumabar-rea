@@ -97,6 +97,8 @@ pub struct Settings {
     pub widgets: Vec<WidgetInstance>,
     /// Show a widget's details when the pointer rests on it.
     pub glance: bool,
+    /// The thin Show desktop button at the far end, as on the Windows taskbar.
+    pub peek_button: bool,
 }
 
 impl Default for Settings {
@@ -111,6 +113,7 @@ impl Default for Settings {
             pins: None,
             widgets: Vec::new(),
             glance: true,
+            peek_button: true,
         }
     }
 }
@@ -202,6 +205,7 @@ pub struct Patch {
     theme: Option<Theme>,
     style: Option<Style>,
     glance: Option<bool>,
+    peek_button: Option<bool>,
     /// `Some("")` means "primary display".
     display: Option<String>,
 }
@@ -227,6 +231,9 @@ pub fn update_settings(app: AppHandle, patch: Patch) -> Settings {
         }
         if let Some(v) = patch.glance {
             s.glance = v;
+        }
+        if let Some(v) = patch.peek_button {
+            s.peek_button = v;
         }
         if let Some(v) = patch.display {
             s.display = (!v.is_empty()).then_some(v);

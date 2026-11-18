@@ -274,10 +274,14 @@ export function KeyForm({ id, svc, onSaved }: { id: string; svc: Pick<Service, "
 function Panel({ instance, provider, chooser }: WidgetProps<AiConfig> & { provider: Provider; chooser?: boolean }) {
   const svc = SERVICES[provider];
   const { result, refresh, busy } = useUsage(instance.id, provider);
-  const [found, setFound] = useState<boolean | null>(null);
+  // The check says why nothing was found when it can; otherwise the stock line is shown.
+  const [missing, setMissing] = useState<string | null>(null);
   useEffect(() => {
-    setFound(null);
-    if (svc.found) invoke<boolean>(svc.found[0]).then(setFound);
+    setMissing(null);
+    if (svc.found)
+      invoke<boolean>(svc.found[0])
+        .then((ok) => setMissing(ok ? null : svc.found![1]))
+        .catch((why) => setMissing(String(why || svc.found![1])));
   }, [svc]);
   const r = result?.reading;
 
@@ -308,7 +312,7 @@ function Panel({ instance, provider, chooser }: WidgetProps<AiConfig> & { provid
       {svc.source ? (
         <p className="fine source">
           {svc.source}
-          {found === false && svc.found && ` ${svc.found[1]}`}
+          {missing && ` ${missing}`}
         </p>
       ) : (
         <KeyForm key={`${instance.id}-${provider}`} id={instance.id} svc={svc} onSaved={() => refresh(true)} />

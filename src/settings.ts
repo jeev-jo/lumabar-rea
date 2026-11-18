@@ -20,6 +20,8 @@ export type Settings = {
   widgets: WidgetInstance[];
   /** Show a widget's details when the pointer rests on it. */
   glance: boolean;
+  /** The thin Show desktop button at the far end of the bar. */
+  peek_button: boolean;
 };
 
 export type Patch = Partial<Omit<Settings, "display" | "widgets">> & { display?: string };

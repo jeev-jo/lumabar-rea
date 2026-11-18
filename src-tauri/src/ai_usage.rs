@@ -21,6 +21,7 @@
 //! reading is kept on disk, so a failure shows "last reading at …" instead of
 //! nothing.
 
+use std::os::windows::process::CommandExt;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -514,13 +515,99 @@ fn codex() -> Result<Reading, String> {
     })
 }
 
-/// Claude Code keeps its sign-in in `%CLAUDE_CONFIG_DIR%` or `~\.claude`.
+/// A variable saved under HKCU\Environment, with `%VAR%` parts expanded.
+fn saved_env(name: &str) -> Option<std::ffi::OsString> {
+    let out = std::process::Command::new("reg")
+        .args(["query", r"HKCU\Environment", "/v", name])
+        .creation_flags(0x0800_0000)
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let line = text.lines().find(|l| l.trim_start().to_lowercase().starts_with(&format!("{} ", name.to_lowercase())))?;
+    let mut value = line.split("REG_").nth(1)?.split_once(char::is_whitespace)?.1.trim().to_string();
+    while let Some(i) = value.find('%') {
+        let Some(j) = value[i + 1..].find('%') else { break };
+        let var = &value[i + 1..i + 1 + j];
+        let Some(v) = std::env::var(var).ok() else { break };
+        value.replace_range(i..i + 2 + j, &v);
+    }
+    (!value.is_empty()).then(|| value.into())
+}
+
+/// An environment variable as the user has it now: this process's copy, or the
+/// saved one (set after the dock started).
+fn user_env(name: &str) -> Option<std::ffi::OsString> {
+    std::env::var_os(name).filter(|v| !v.is_empty()).or_else(|| saved_env(name))
+}
+
+/// Where Claude Code may keep its settings folder: `%CLAUDE_CONFIG_DIR%`, then
+/// `.claude` under the home folder (Node's idea of home is `%USERPROFILE%`, but
+/// shells such as Git Bash can set `%HOME%` elsewhere).
+fn claude_dirs() -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    if let Some(d) = user_env("CLAUDE_CONFIG_DIR") {
+        dirs.push(PathBuf::from(d));
+    }
+    for home in ["USERPROFILE", "HOME"].iter().filter_map(|v| user_env(v)) {
+        dirs.push(PathBuf::from(home).join(".claude"));
+    }
+    if let (Some(d), Some(p)) = (std::env::var_os("HOMEDRIVE"), std::env::var_os("HOMEPATH")) {
+        let mut h = std::ffi::OsString::from(d);
+        h.push(p);
+        dirs.push(PathBuf::from(h).join(".claude"));
+    }
+    dirs.dedup_by(|a, b| a.to_string_lossy().eq_ignore_ascii_case(&b.to_string_lossy()));
+    dirs
+}
+
+/// Claude Code keeps its Claude.ai sign-in in `<config dir>\.credentials.json`.
+/// With several candidates, the one written most recently wins.
 fn claude_code_file() -> Option<PathBuf> {
-    let dir = std::env::var_os("CLAUDE_CONFIG_DIR")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("USERPROFILE").map(|h| PathBuf::from(h).join(".claude")))?;
-    let f = dir.join(".credentials.json");
-    f.exists().then_some(f)
+    claude_dirs()
+        .into_iter()
+        .map(|d| d.join(".credentials.json"))
+        .filter_map(|f| Some((fs::metadata(&f).ok()?.modified().ok()?, f)))
+        .max_by_key(|(t, _)| *t)
+        .map(|(_, f)| f)
+}
+
+/// Is `claude` on the PATH (npm, the native installer, WinGet or Scoop)?
+fn claude_cli_installed() -> bool {
+    // This process's PATH, plus the saved user PATH an installer may have just changed.
+    let mut places: Vec<PathBuf> = [std::env::var_os("PATH"), saved_env("Path")]
+        .into_iter()
+        .flatten()
+        .flat_map(|p| std::env::split_paths(&p).collect::<Vec<_>>())
+        .collect();
+    if let Some(h) = user_env("USERPROFILE") {
+        places.push(PathBuf::from(&h).join(r".local\bin"));
+    }
+    if let Some(a) = user_env("APPDATA") {
+        places.push(PathBuf::from(a).join("npm"));
+    }
+    places.iter().any(|d| ["claude.exe", "claude.cmd", "claude.ps1"].iter().any(|f| d.join(f).is_file()))
+}
+
+/// Why plan limits can't be read yet, in words the user can act on, or None
+/// when a sign-in file was found.
+fn claude_code_missing() -> Option<String> {
+    if claude_code_file().is_some() {
+        return None;
+    }
+    let looked = claude_dirs()
+        .iter()
+        .map(|d| d.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some(if claude_cli_installed() {
+        format!(
+            "Claude Code is installed, but no Claude.ai sign-in was found (looked in {looked}). \
+             Run claude, type /login and choose your Claude subscription (an API key or Console \
+             sign-in has no plan limits). If you set CLAUDE_CONFIG_DIR, restart the dock."
+        )
+    } else {
+        format!("No Claude Code sign-in was found (looked in {looked}). Install Claude Code and sign in with your Claude subscription first.")
+    })
 }
 
 fn label_for(window: &str) -> String {
@@ -551,13 +638,13 @@ fn meter_rank(label: &str) -> u8 {
 
 fn claude_code() -> Result<Reading, String> {
     let file = claude_code_file()
-        .ok_or("Claude Code's sign-in wasn't found on this PC. Sign in to Claude Code first.")?;
+        .ok_or_else(|| claude_code_missing().unwrap_or_default())?;
     let creds: Value = serde_json::from_str(&fs::read_to_string(&file).map_err(|e| e.to_string())?)
         .map_err(|_| "Claude Code's sign-in file isn't in a format this build understands.")?;
     let token = creds
         .pointer("/claudeAiOauth/accessToken")
         .and_then(|v| v.as_str())
-        .ok_or("Claude Code's sign-in file has no access token.")?;
+        .ok_or("Claude Code is signed in without a Claude.ai subscription (no plan token). Run claude, type /login and choose your Claude subscription.")?;
     if let Some(exp) = creds.pointer("/claudeAiOauth/expiresAt").and_then(|v| v.as_u64()) {
         if exp < now_ms() {
             return Err("Claude Code's sign-in has expired. Open Claude Code once to renew it.".into());
@@ -839,8 +926,11 @@ pub fn ai_clear_key(id: String) {
 }
 
 #[tauri::command]
-pub fn ai_claude_code_found() -> bool {
-    claude_code_file().is_some()
+pub fn ai_claude_code_found() -> Result<bool, String> {
+    match claude_code_missing() {
+        None => Ok(true),
+        Some(why) => Err(why),
+    }
 }
 
 #[tauri::command]

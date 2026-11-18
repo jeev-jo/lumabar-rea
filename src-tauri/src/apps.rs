@@ -1,21 +1,23 @@
 //! Pinned apps and open windows: the taskbar's core job.
 //!
 //! Windows are listed with the same rules Alt-Tab uses, grouped per app by the
-//! process's exe path, and merged with the user's pins. A WinEvent hook and the
-//! shell hook push live updates to the UI as `apps-changed` events.
+//! process's exe path (or, for web apps installed from Chrome or Edge, by the
+//! app ID the browser gives their windows), and merged with the user's pins.
+//! A WinEvent hook and the shell hook push live updates to the UI as
+//! `apps-changed` events.
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{mpsc, Mutex, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, WebviewWindow};
 use windows::core::{w, Interface, BOOL, HSTRING, PCWSTR, PWSTR};
-use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM, LRESULT, SIZE, WPARAM};
+use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM, LRESULT, PROPERTYKEY, SIZE, WPARAM};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
 use windows::Win32::Graphics::Gdi::{
     DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER,
@@ -24,8 +26,9 @@ use windows::Win32::Graphics::Gdi::{
 use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
 };
+use windows::Win32::System::Com::StructuredStorage::PropVariantToStringAlloc;
 use windows::Win32::System::Com::{
-    CoCreateInstance, CoInitializeEx, IPersistFile, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+    CoCreateInstance, CoInitializeEx, CoTaskMemFree, IPersistFile, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
     STGM_READ,
 };
 use windows::Win32::System::Threading::{
@@ -33,6 +36,7 @@ use windows::Win32::System::Threading::{
     PROCESS_QUERY_LIMITED_INFORMATION,
 };
 use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
+use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyStoreForWindow};
 use windows::Win32::UI::Shell::{
     DefSubclassProc, IShellItemImageFactory, IShellLinkW, SHCreateItemFromParsingName,
     SetWindowSubclass, ShellExecuteW, ShellLink, SIIGBF, SIIGBF_BIGGERSIZEOK, SIIGBF_ICONONLY,
@@ -270,7 +274,9 @@ fn collect_windows() -> Vec<Win> {
             let title = window_title(hwnd);
             let mut exe = process_exe(pid)?;
             let mut key = exe.to_lowercase();
-            if key.ends_with("\\applicationframehost.exe") {
+            if let Some(id) = window_prop(hwnd, AUMID).filter(|id| is_web_app(id)) {
+                key = format!("{WEB}{}", id.to_lowercase());
+            } else if key.ends_with("\\applicationframehost.exe") {
                 match store_app_exe(hwnd, pid) {
                     Some(real) => {
                         key = real.to_lowercase();
@@ -290,6 +296,115 @@ fn collect_windows() -> Vec<Win> {
             })
         })
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Web apps (installed from Chrome, Edge and other Chromium browsers)
+// ---------------------------------------------------------------------------
+
+/// Key prefix for a web app's windows; the rest is its lower-cased app ID.
+const WEB: &str = "web:";
+const PKEY_APPUSERMODEL: windows::core::GUID =
+    windows::core::GUID::from_u128(0x9F4C2855_9F79_4B39_A8D0_E1D42DE1D5F3);
+/// System.AppUserModel.ID.
+const AUMID: u32 = 5;
+/// System.AppUserModel.RelaunchIconResource.
+const RELAUNCH_ICON: u32 = 3;
+
+/// Chromium names each installed web app's windows and shortcuts
+/// "<Browser>._crx_<app>[.<profile>]", so the taskbar can tell them apart.
+fn is_web_app(id: &str) -> bool {
+    id.contains("._crx_")
+}
+
+fn prop_string(store: &IPropertyStore, pid: u32) -> Option<String> {
+    let key = PROPERTYKEY { fmtid: PKEY_APPUSERMODEL, pid };
+    unsafe {
+        let value = store.GetValue(&key).ok()?;
+        let text = PropVariantToStringAlloc(&value).ok()?;
+        let out = text.to_string().ok();
+        CoTaskMemFree(Some(text.0 as *const c_void));
+        out.filter(|t| !t.is_empty())
+    }
+}
+
+/// An app-model property a window was given by its app (none for most windows).
+fn window_prop(hwnd: HWND, pid: u32) -> Option<String> {
+    com_init();
+    let store: IPropertyStore = unsafe { SHGetPropertyStoreForWindow(hwnd) }.ok()?;
+    prop_string(&store, pid)
+}
+
+/// The app ID stored in a shortcut, if any.
+fn lnk_app_id(path: &str) -> Option<String> {
+    com_init();
+    unsafe {
+        let link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).ok()?;
+        link.cast::<IPersistFile>().ok()?.Load(&HSTRING::from(path), STGM_READ).ok()?;
+        prop_string(&link.cast::<IPropertyStore>().ok()?, AUMID)
+    }
+}
+
+/// Web-app shortcuts the browsers made (Start menu and desktop), by app ID.
+static WEB_LINKS: Mutex<Option<(Instant, HashMap<String, String>)>> = Mutex::new(None);
+
+fn scan_links(dir: &Path, depth: u8, out: &mut HashMap<String, String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for e in entries.flatten() {
+        let path = e.path();
+        if path.is_dir() {
+            if depth > 0 {
+                scan_links(&path, depth - 1, out);
+            }
+        } else if path.extension().is_some_and(|x| x.eq_ignore_ascii_case("lnk")) {
+            let p = path.to_string_lossy().into_owned();
+            if let Some(id) = lnk_app_id(&p).filter(|id| is_web_app(id)) {
+                out.entry(id.to_lowercase()).or_insert(p);
+            }
+        }
+    }
+}
+
+/// The shortcut for a web app, which gives the dock its name, icon and a way
+/// to start it. Rescanned at most every 30 seconds while an app isn't known.
+fn web_shortcut(key: &str) -> Option<String> {
+    let id = key.strip_prefix(WEB)?;
+    let mut guard = WEB_LINKS.lock().unwrap();
+    let stale = match guard.as_ref() {
+        Some((at, m)) => !m.contains_key(id) && at.elapsed() > Duration::from_secs(30),
+        None => true,
+    };
+    if stale {
+        let mut m = HashMap::new();
+        let menu = r"Microsoft\Windows\Start Menu\Programs";
+        for (var, sub) in [("APPDATA", menu), ("ProgramData", menu), ("USERPROFILE", "Desktop")] {
+            if let Some(base) = std::env::var_os(var) {
+                scan_links(&Path::new(&base).join(sub), 3, &mut m);
+            }
+        }
+        *guard = Some((Instant::now(), m));
+    }
+    guard.as_ref()?.1.get(id).cloned()
+}
+
+/// Name, launch target and icon for a running web app's dock button.
+fn web_app_entry(key: &str, first: &Win) -> (String, String, String) {
+    if let Some(lnk) = web_shortcut(key) {
+        let name = Path::new(&lnk)
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        return (name, lnk.clone(), lnk);
+    }
+    // No shortcut (it was deleted): use the icon the browser gave the window.
+    let icon = window_prop(HWND(first.hwnd as *mut c_void), RELAUNCH_ICON)
+        .map(|r| match r.rsplit_once(',') {
+            Some((p, n)) if n.trim().parse::<i32>().is_ok() => p.to_string(),
+            _ => r,
+        })
+        .filter(|p| Path::new(p).is_file())
+        .unwrap_or_else(|| first.exe.clone());
+    (first.title.clone(), first.exe.clone(), icon)
 }
 
 // ---------------------------------------------------------------------------
@@ -352,6 +467,8 @@ fn pin_key(pin: &Pin) -> String {
     }
     let key = if pin.path.to_lowercase().ends_with(".exe") {
         pin.path.to_lowercase()
+    } else if let Some(id) = lnk_app_id(&pin.path).filter(|id| is_web_app(id)) {
+        format!("{WEB}{}", id.to_lowercase())
     } else if let Some(target) = lnk_target(&pin.path) {
         target.to_lowercase()
     } else if pin.name.to_lowercase().starts_with("file explorer") {
@@ -576,6 +693,11 @@ fn snapshot() -> Vec<AppEntry> {
     }
     for key in order.iter() {
         let first = groups[key.as_str()][0];
+        if key.starts_with(WEB) {
+            let (name, launch, icon) = web_app_entry(key, first);
+            out.push(entry(key, name, false, launch, icon));
+            continue;
+        }
         let name = app_name(key, &first.exe, &first.title);
         out.push(entry(key, name, false, first.exe.clone(), first.exe.clone()));
     }
@@ -717,6 +839,9 @@ pub async fn app_pin(key: String) -> Result<(), String> {
     let app = find(&key)?;
     if app.pinned || key.starts_with("store:") {
         return Ok(());
+    }
+    if key.starts_with(WEB) && !app.launch.to_lowercase().ends_with(".lnk") {
+        return Err("This web app has no shortcut to pin. Reinstall it from the browser's Apps menu.".into());
     }
     let mut list = pins();
     list.push(Pin {

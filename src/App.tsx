@@ -30,16 +30,40 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   const dragStartY = useRef<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  // Below 1 when everything wouldn't fit on the screen: the bar's contents
+  // shrink together (icons, widgets, clock), like a dock that runs out of room.
+  const [fit, setFit] = useState(1);
+  const fitRef = useRef(1);
 
   // Tell Rust how wide the bar wants to be, so the dock window fits it exactly.
   useEffect(() => {
     const el = barRef.current;
     if (!el) return;
-    const report = () => invoke("dock_set_bar_width", { width: Math.ceil(el.getBoundingClientRect().width) });
+    const report = () => {
+      const width = el.getBoundingClientRect().width;
+      const parts = [...el.children].filter((c) => !c.classList.contains("liquid-canvas"));
+      const scaled = parts.reduce((sum, c) => sum + c.getBoundingClientRect().width, 0);
+      // Padding, border and gaps don't shrink; everything else does.
+      const fixed = width - scaled;
+      const natural = scaled / fitRef.current;
+      // The window is capped a little inside the screen's width.
+      const room = window.screen.width - 16 - fixed;
+      const next = Math.min(1, room / natural);
+      if (Math.abs(next - fitRef.current) > 0.004) {
+        fitRef.current = next;
+        setFit(next);
+      }
+      invoke("dock_set_bar_width", { width: Math.ceil(fixed + natural * next) });
+    };
     const ro = new ResizeObserver(report);
     ro.observe(el);
+    const mo = new MutationObserver(report);
+    mo.observe(el, { childList: true, subtree: true });
     report();
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
   }, []);
   const draggedPin = useRef<string | null>(null);
   const now = useClock();
@@ -79,6 +103,11 @@ export default function App() {
         await MenuItem.new({
           text: "Settings…",
           action: () => invoke("open_settings"),
+        }),
+        await CheckMenuItem.new({
+          text: "Show desktop button",
+          checked: settings.peek_button !== false,
+          action: () => updateSettings({ peek_button: settings.peek_button === false }).catch(console.error),
         }),
         await PredefinedMenuItem.new({ item: "Separator" }),
         await modeItem("hide", "Windows taskbar: auto-hide"),
@@ -123,6 +152,7 @@ export default function App() {
       <div
         ref={barRef}
         className={`bar${dragging ? " dragging" : ""}${editing ? " editing" : ""}`}
+        style={fit < 1 ? ({ "--fit": fit } as React.CSSProperties) : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -155,6 +185,10 @@ export default function App() {
         )}
         <span className="divider" />
         <Clock now={now} />
+        {settings?.peek_button !== false && (
+          // Like the Windows taskbar: a sliver at the far end that shows the desktop.
+          <button className="peek" aria-label="Show desktop" title="Show desktop" onClick={() => invoke("show_desktop")} />
+        )}
       </div>
     </div>
   );
