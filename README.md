@@ -47,7 +47,7 @@ Add, remove and arrange widgets from the widget picker. While it's open, drag wi
 
 ## Install
 
-Download the `.msi` from the [latest release](https://github.com/jeev-jo/lumabar-rea/releases/latest) and run it. The app checks GitHub Releases for updates (*Settings → About → Check now*). Every update is signed, and the app refuses one that doesn't match its built-in public key.
+[Download the installer](https://github.com/jeev-jo/lumabar-rea/releases/latest/download/luma-ai-bar_x64.msi) (`.msi`) from the latest release and run it. The app checks GitHub Releases for updates (*Settings → About → Check now*). Every update is signed, and the app refuses one that doesn't match its built-in public key.
 
 Windows may show a SmartScreen warning, because the installer isn't code-signed with a paid certificate.
 
@@ -98,5 +98,6 @@ Updates are signed with a private key that never goes in the repo.
 2. Build with `TAURI_SIGNING_PRIVATE_KEY` set to the path of the key (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if it has one).
 3. Run `node scripts/latest-json.mjs "What changed"` to write `latest.json` next to the `.msi`.
 4. Make a GitHub release tagged `vX.Y.Z` and attach the `.msi`, its `.sig`, and `latest.json`.
+5. Also attach a copy of the `.msi` named `luma-ai-bar_x64.msi`. The website's Download button links to `releases/latest/download/luma-ai-bar_x64.msi`, so it always gets the newest installer.
 
 Installed copies find the new version through `releases/latest/download/latest.json`.
