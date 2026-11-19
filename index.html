@@ -9,5 +9,14 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // The dock must never sit there empty (a reload that failed half-way,
+      // e.g. while the PC is waking up): if nothing was drawn, try again.
+      if (!new URLSearchParams(location.search).has("view")) {
+        setTimeout(function check() {
+          if (document.getElementById("root").childElementCount === 0) location.reload();
+        }, 10000);
+      }
+    </script>
   </body>
 </html>
