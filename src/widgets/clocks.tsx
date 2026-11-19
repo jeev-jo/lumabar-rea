@@ -271,7 +271,7 @@ export function WorldAnalogTile({ instance }: WidgetProps<ZonesConfig>) {
       {zonesOf(instance.config)
         .slice(0, count)
         .map((z) => (
-          <span key={z.tz} className="city" title={`${z.label} ${hhmm(now, local24(), false, z.tz)}`}>
+          <span key={z.label + z.tz} className="city" title={`${z.label} ${hhmm(now, local24(), false, z.tz)}`}>
             <Face now={now} tz={z.tz} size={22} />
             <small>{z.label.slice(0, 3).toUpperCase()}</small>
           </span>

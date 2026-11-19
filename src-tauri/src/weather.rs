@@ -55,6 +55,9 @@ pub struct Place {
     pub country: String,
     pub latitude: f64,
     pub longitude: f64,
+    /// The place's time zone ("Europe/Berlin"); for the world clocks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
 }
 
 static CACHE: Mutex<Option<HashMap<String, (Instant, Weather)>>> = Mutex::new(None);
@@ -204,6 +207,8 @@ struct GeoResult {
     country: String,
     latitude: f64,
     longitude: f64,
+    #[serde(default)]
+    timezone: Option<String>,
 }
 
 /// Look up places by name for the weather widget's location picker.
@@ -217,7 +222,7 @@ pub async fn place_search(query: String) -> Result<Vec<Place>, String> {
         let r: GeoResponse = agent()
             .get("https://geocoding-api.open-meteo.com/v1/search")
             .query("name", &q)
-            .query("count", "6")
+            .query("count", "8")
             .query("language", "en")
             .query("format", "json")
             .call()
@@ -232,6 +237,7 @@ pub async fn place_search(query: String) -> Result<Vec<Place>, String> {
                 country: g.country,
                 latitude: g.latitude,
                 longitude: g.longitude,
+                timezone: g.timezone,
             })
             .collect())
     })
