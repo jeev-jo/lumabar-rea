@@ -286,6 +286,11 @@ fn collect_windows() -> Vec<Win> {
                     None => key = format!("store:{title}"),
                 }
             }
+            if !key.starts_with(WEB) && !key.starts_with("store:") {
+                if let Some(id) = package_app_id(&exe) {
+                    key = format!("{PKG}{}", id.to_lowercase());
+                }
+            }
             Some(Win {
                 hwnd: hwnd.0 as isize,
                 minimized: unsafe { IsIconic(hwnd).as_bool() },
@@ -408,6 +413,57 @@ fn web_app_entry(key: &str, first: &Win) -> (String, String, String) {
 }
 
 // ---------------------------------------------------------------------------
+// Store / MSIX apps (installed under Program Files\WindowsApps)
+// ---------------------------------------------------------------------------
+
+/// Key prefix for a packaged app; the rest is its lower-cased app ID
+/// ("claude_pzs8sxrjxfjjc!claude"), which stays the same across updates.
+const PKG: &str = "pkg:";
+/// The shell's name for an installed app, which it can draw and open.
+const APPS_FOLDER: &str = "shell:AppsFolder\\";
+
+static PKG_IDS: Mutex<Option<HashMap<String, Option<String>>>> = Mutex::new(None);
+
+/// The app ID of a packaged app's exe ("Claude_pzs8sxrjxfjjc!Claude"), read
+/// from its package folder name and manifest. The exe itself can't be read
+/// for an icon, but the shell draws the package's logo from this ID.
+fn package_app_id(exe: &str) -> Option<String> {
+    let lower = exe.to_lowercase();
+    let at = lower.find("\\windowsapps\\")? + "\\windowsapps\\".len();
+    if let Some(hit) = with_map(&PKG_IDS, |m| m.get(&lower).cloned()) {
+        return hit;
+    }
+    let found = (|| {
+        let rest = &exe[at..];
+        let (folder, inner) = rest.split_once('\\')?;
+        // "<Name>_<Version>_<Arch>_<Resource>_<PublisherId>"; names have no "_".
+        let (head, publisher) = folder.rsplit_once("__").or_else(|| folder.rsplit_once('_'))?;
+        let name = head.split('_').next()?;
+        let manifest = std::fs::read_to_string(Path::new(&exe[..at]).join(folder).join("AppxManifest.xml")).ok()?;
+        let attr = |tag: &str, key: &str| -> Option<String> {
+            let start = tag.find(&format!(" {key}=\""))? + key.len() + 3;
+            Some(tag[start..].split('"').next()?.to_string())
+        };
+        let apps: Vec<(String, String)> = manifest
+            .split("<Application ")
+            .skip(1)
+            .filter_map(|t| {
+                let tag = format!(" {}", t.split('>').next()?);
+                Some((attr(&tag, "Id")?, attr(&tag, "Executable").unwrap_or_default()))
+            })
+            .collect();
+        let id = apps
+            .iter()
+            .find(|(_, e)| e.eq_ignore_ascii_case(inner))
+            .or_else(|| apps.first())
+            .map(|(id, _)| id.clone())?;
+        Some(format!("{name}_{publisher}!{id}"))
+    })();
+    with_map(&PKG_IDS, |m| m.insert(lower, found.clone()));
+    found
+}
+
+// ---------------------------------------------------------------------------
 // Pins
 // ---------------------------------------------------------------------------
 
@@ -465,12 +521,17 @@ fn pin_key(pin: &Pin) -> String {
     if let Some(k) = with_map(&PIN_KEYS, |m| m.get(&pin.path).cloned()) {
         return k;
     }
-    let key = if pin.path.to_lowercase().ends_with(".exe") {
-        pin.path.to_lowercase()
+    // Store apps are keyed by app ID, whichever way they were pinned.
+    let pkg = |exe: &str| package_app_id(exe).map(|id| format!("{PKG}{}", id.to_lowercase()));
+    let lower = pin.path.to_lowercase();
+    let key = if let Some(id) = lower.strip_prefix(&APPS_FOLDER.to_lowercase()).filter(|id| id.contains('!')) {
+        format!("{PKG}{id}")
+    } else if lower.ends_with(".exe") {
+        pkg(&pin.path).unwrap_or(lower)
     } else if let Some(id) = lnk_app_id(&pin.path).filter(|id| is_web_app(id)) {
         format!("{WEB}{}", id.to_lowercase())
     } else if let Some(target) = lnk_target(&pin.path) {
-        target.to_lowercase()
+        pkg(&target).unwrap_or_else(|| target.to_lowercase())
     } else if pin.name.to_lowercase().starts_with("file explorer") {
         // The File Explorer pin points at a shell folder, not an exe.
         let windir = std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".into());
@@ -696,6 +757,12 @@ fn snapshot() -> Vec<AppEntry> {
         if key.starts_with(WEB) {
             let (name, launch, icon) = web_app_entry(key, first);
             out.push(entry(key, name, false, launch, icon));
+            continue;
+        }
+        if let Some(id) = key.starts_with(PKG).then(|| package_app_id(&first.exe)).flatten() {
+            // The shell draws the package's logo and opens the app from its ID.
+            let shell = format!("{APPS_FOLDER}{id}");
+            out.push(entry(key, app_name(key, &first.exe, &first.title), false, shell.clone(), shell));
             continue;
         }
         let name = app_name(key, &first.exe, &first.title);
