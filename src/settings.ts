@@ -22,7 +22,11 @@ export type Settings = {
   glance: boolean;
   /** The thin Show desktop button at the far end of the bar. */
   peek_button: boolean;
+  /** New versions: tell me ("notify"), install them ("auto"), or don't check ("off"). */
+  updates: UpdateMode;
 };
+
+export type UpdateMode = "notify" | "auto" | "off";
 
 export type Patch = Partial<Omit<Settings, "display" | "widgets">> & { display?: string };
 

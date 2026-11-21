@@ -3393,3 +3393,116 @@ html.popover-page #root {
 .w-analog.s {
   justify-content: center;
 }
+
+/* World clock: reorder rows by dragging or with the arrows. */
+.zones li[draggable] { cursor: grab; }
+.zones li.drop-before { box-shadow: inset 0 2px 0 var(--accent, #4c8dff); }
+.zones li.drop-after { box-shadow: inset 0 -2px 0 var(--accent, #4c8dff); }
+.zones .grip { opacity: 0.35; font-size: 12px; cursor: grab; }
+.zones .order { display: flex; flex-direction: column; gap: 1px; }
+.zones .order button {
+  width: 20px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 8px;
+  line-height: 1;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.zones .order button:hover:not(:disabled) { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
+.zones .order button:disabled { opacity: 0.15; cursor: default; }
+
+/* ---- WhatsApp ---- */
+.w-msgs { display: flex; align-items: center; gap: 13px; height: 100%; padding: 0 8px; min-width: 0; }
+.w-msgs.s { justify-content: center; padding: 0; }
+.w-msgs .icon-wrap { position: relative; display: grid; place-items: center; flex: none; }
+.w-msgs .badge {
+  position: absolute;
+  top: -6px;
+  right: -9px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #25d366;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}
+.w-msgs .msg-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.w-msgs .msg-text b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-msgs .msg-text small { font-size: 11px; opacity: 0.65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.msg-list { list-style: none; margin: 10px 0; padding: 0; }
+.msg-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1px 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.msg-list .who { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-list .when { font-size: 11px; opacity: 0.55; }
+.msg-list .what { grid-column: 1 / -1; font-size: 12px; opacity: 0.75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- design pass ---- */
+
+/* Top CPU / RAM: a little air between apps, and an initial when there's no icon. */
+.w-top3 { gap: 9px !important; }
+.w-top3 .app { gap: 4px; }
+.w-top3 .app .letter {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--hover);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Small service tiles: keep a 5-character number like 12.5K whole. */
+.widget.size-s .w-svc { gap: 4px !important; }
+.widget.size-s .w-svc .value b { font-size: 12px; letter-spacing: -0.02em; overflow: visible; text-overflow: clip; }
+
+/* ---- Day timeline ---- */
+.w-timeline { display: flex; align-items: center; gap: 8px; padding: 3px 8px !important; }
+.w-timeline .tl-total { display: flex; flex-direction: column; line-height: 1.1; flex: none; }
+.w-timeline .tl-total b { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.w-timeline .tl-total small { font-size: 10px; opacity: 0.6; }
+.timeline { gap: 1.5px; }
+.timeline i {
+  border-radius: 2px 2px 1px 1px;
+  background: color-mix(in srgb, var(--series-1) 75%, transparent);
+  opacity: 1;
+}
+.timeline i.busy { background: var(--series-1); }
+.timeline i.future { background: var(--divider); min-height: 2px; }
+.timeline .tick {
+  position: absolute;
+  top: 15%;
+  bottom: 0;
+  width: 1px;
+  background: var(--divider);
+  opacity: 0.7;
+}
+.timeline .daylight {
+  border-radius: 5px;
+  background: linear-gradient(to top, color-mix(in srgb, var(--warning) 22%, transparent), color-mix(in srgb, var(--warning) 6%, transparent));
+}
+.timeline .nowline { width: 2px; top: -1px; bottom: -1px; }
+.timeline .now-dot {
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--critical);
+}

@@ -9,6 +9,7 @@ import { sideOf } from "./widgets/shared";
 import { useEditMode } from "./widgets/arrange";
 import "./widgets/widgets.css";
 import { LiquidGlass } from "./liquid";
+import { useUpdateCheck } from "./Updates";
 import "./App.css";
 
 function useClock() {
@@ -68,6 +69,7 @@ export default function App() {
   const draggedPin = useRef<string | null>(null);
   const now = useClock();
   const apps = useApps();
+  const updates = useUpdateCheck(settings?.updates);
 
   function dropOnPin(targetKey: string) {
     const from = draggedPin.current;
@@ -184,6 +186,19 @@ export default function App() {
           </>
         )}
         <span className="divider" />
+        {updates.update && settings?.updates !== "off" && (
+          <button
+            className="update-pill"
+            title={`luma-ai-bar ${updates.update.version} is ready. Click to install it; the dock restarts.`}
+            disabled={updates.installing}
+            onClick={() => updates.install()}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" />
+            </svg>
+            {updates.installing ? (updates.percent == null ? "Updating" : `${updates.percent}%`) : "Update"}
+          </button>
+        )}
         <Clock now={now} />
         {settings?.peek_button !== false && (
           // Like the Windows taskbar: a sliver at the far end that shows the desktop.

@@ -686,7 +686,7 @@ fn glm(key: &str) -> Result<Reading, String> {
         for l in data["limits"].as_array().cloned().unwrap_or_default() {
             let label = match l["type"].as_str().unwrap_or("") {
                 "TOKENS_LIMIT" => "Session",
-                "TIME_LIMIT" => "Tools, monthly",
+                "TIME_LIMIT" => "Tools",
                 other => other,
             };
             let pct = num(&l, "percentage").unwrap_or_else(|| {
@@ -1985,7 +1985,8 @@ pub fn online_local_found(provider: String) -> bool {
 /// Open an https link from a widget (an issue, a notification) in the browser.
 #[tauri::command]
 pub fn open_link(url: String) -> Result<(), String> {
-    if !url.starts_with("https://") || url.chars().any(|c| c.is_whitespace() || c == '"') {
+    // https links, plus the one app link the WhatsApp widget uses.
+    if url != "whatsapp://" && (!url.starts_with("https://") || url.chars().any(|c| c.is_whitespace() || c == '"')) {
         return Err("only https links can be opened".into());
     }
     use windows::core::{w, HSTRING, PCWSTR};

@@ -105,18 +105,55 @@ export function WorldClockPanel({ instance }: WidgetProps<WorldClockConfig>) {
     return hits.filter((h) => !seen.has(h.label + h.tz) && seen.add(h.label + h.tz)).slice(0, 10);
   }, [q, places, all]);
   const save = (next: Zone[]) => updateConfig(instance.id, { ...instance.config, zones: next });
+  // Reorder by dragging a row, or with its up and down arrows; the dock shows the first ones.
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= zones.length || from === to) return;
+    const next = [...zones];
+    next.splice(to, 0, ...next.splice(from, 1));
+    save(next);
+  };
 
   return (
     <div className="panel w-worldclock-panel">
       <h3>World clock</h3>
       <ul className="zones">
         {zones.map((z, i) => (
-          <li key={z.label + z.tz}>
+          <li
+            key={z.label + z.tz}
+            draggable
+            className={dragOver === i && dragFrom !== null && dragFrom !== i ? (dragFrom < i ? "drop-after" : "drop-before") : ""}
+            onDragStart={(e) => {
+              setDragFrom(i);
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(i);
+            }}
+            onDragEnd={() => (setDragFrom(null), setDragOver(null))}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragFrom !== null) move(dragFrom, i);
+              setDragFrom(null);
+              setDragOver(null);
+            }}
+          >
+            <span className="grip" aria-hidden="true">⠿</span>
             <span className="name">
               <b>{z.label}</b>
               <small>{offset(z.tz, now)}</small>
             </span>
             <span className="t">{time(z.tz, now)}</span>
+            <span className="order">
+              <button title="Move up" aria-label={`Move ${z.label} up`} disabled={i === 0} onClick={() => move(i, i - 1)}>
+                ▲
+              </button>
+              <button title="Move down" aria-label={`Move ${z.label} down`} disabled={i === zones.length - 1} onClick={() => move(i, i + 1)}>
+                ▼
+              </button>
+            </span>
             <button className="remove" title="Remove" disabled={zones.length === 1} onClick={() => save(zones.filter((_, j) => j !== i))}>
               ×
             </button>

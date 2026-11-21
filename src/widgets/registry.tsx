@@ -1,3 +1,4 @@
+import * as M from "./messages";
 import {
   MicPanel,
   MicTile,
@@ -415,9 +416,9 @@ const MORE: WidgetKind[] = [
   svc("opencode_week", "OpenCode usage", "AI", "OpenCode tokens over the last 7 days, and your top model.", ALL, "m", 420),
 
   // Productivity
+  w("timeline", "Day timeline", "Productivity", "Your day on one line: time on the PC hour by hour, where you are now, and daylight.", ML, "l", [360, 360], { Tile: T.DayTimelineTile, Panel: T.DayTimelinePanel }),
   w("timer", "Timer", "Productivity", "A one-click countdown with a chime.", ALL, "m", [300, 340], { Tile: T.TimerTile, Panel: T.TimerPanel }),
   w("stopwatch", "Stopwatch", "Productivity", "Start, pause and lap.", ALL, "m", [300, 360], { Tile: T.StopwatchTile, Panel: T.StopwatchPanel }),
-  w("timeline", "Day timeline", "Productivity", "Your day on one line: PC use per hour, now, and daylight.", ML, "l", [360, 360], { Tile: T.DayTimelineTile, Panel: T.DayTimelinePanel }),
   svc("calendar", "Calendar", "Productivity", "Your next event, from a Google, Outlook or iCloud calendar's private address.", ALL, "l", 440),
   svc("currency", "Currency", "Productivity", "Convert between currencies at today's rate.", ALL, "m", 460),
 
@@ -450,6 +451,7 @@ const MORE: WidgetKind[] = [
   w("temperature", "Temperature", "System", "How warm the PC is, with CPU and memory load.", ALL, "m", [320, 320], { Tile: P.TemperatureTile, Panel: P.TemperaturePanel }),
   w("brightness", "Brightness", "System", "The screen's brightness, with a slider.", ALL, "m", [300, 220], { Tile: P.BrightnessTile, Panel: P.BrightnessPanel }),
   w("language", "Language", "System", "Your keyboard layout; click to switch.", SM, "s", [300, 260], { Tile: P.LanguageTile, Panel: P.LanguagePanel }),
+  w("whatsapp", "WhatsApp", "Productivity", "Messages waiting and who wrote last, from Windows' notifications.", ALL, "m", [320, 380], { Tile: M.WhatsAppTile, Panel: M.WhatsAppPanel }),
   w("notifications", "Notifications", "System", "Open the notification center.", SM, "s", [300, 180], { Tile: P.NotificationsTile, Panel: P.NotificationsPanel }),
   w("keyboard", "Keyboard", "System", "Open the on-screen keyboard.", SM, "s", [300, 180], { Tile: P.KeyboardTile, Panel: P.KeyboardPanel }),
   w("battery_ring", "Battery ring", "System", "Charge as a ring that pulses while plugged in.", ALL, "s", [300, 220], { Tile: P.BatteryRingTile, Panel: BatteryPanel }),
@@ -522,3 +524,10 @@ WIDGETS.push(...MORE);
 export const byKind = (kind: string) => WIDGETS.find((w) => w.kind === kind);
 
 export const SIZE_LABEL: Record<WidgetSize, string> = { s: "Small", m: "Medium", l: "Large" };
+
+// Day timeline leads the Productivity group in the picker.
+{
+  const from = WIDGETS.findIndex((k) => k.kind === "timeline");
+  const to = WIDGETS.findIndex((k) => k.group === "Productivity");
+  if (from > to && to >= 0) WIDGETS.splice(to, 0, ...WIDGETS.splice(from, 1));
+}

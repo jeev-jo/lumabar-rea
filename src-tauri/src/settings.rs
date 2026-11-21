@@ -99,6 +99,8 @@ pub struct Settings {
     pub glance: bool,
     /// The thin Show desktop button at the far end, as on the Windows taskbar.
     pub peek_button: bool,
+    /// What to do about new versions: "notify", "auto" (install) or "off".
+    pub updates: String,
 }
 
 impl Default for Settings {
@@ -114,6 +116,7 @@ impl Default for Settings {
             widgets: Vec::new(),
             glance: true,
             peek_button: true,
+            updates: "notify".into(),
         }
     }
 }
@@ -206,6 +209,7 @@ pub struct Patch {
     style: Option<Style>,
     glance: Option<bool>,
     peek_button: Option<bool>,
+    updates: Option<String>,
     /// `Some("")` means "primary display".
     display: Option<String>,
 }
@@ -234,6 +238,9 @@ pub fn update_settings(app: AppHandle, patch: Patch) -> Settings {
         }
         if let Some(v) = patch.peek_button {
             s.peek_button = v;
+        }
+        if let Some(v) = patch.updates.filter(|v| ["notify", "auto", "off"].contains(&v.as_str())) {
+            s.updates = v;
         }
         if let Some(v) = patch.display {
             s.display = (!v.is_empty()).then_some(v);

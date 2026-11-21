@@ -272,6 +272,7 @@ pub fn run() {
             extras::language_get,
             extras::language_next,
             extras::temperature,
+            extras::app_messages,
             extras::brightness_get,
             extras::brightness_set,
             extras::radios_status,

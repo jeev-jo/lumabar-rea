@@ -67,7 +67,7 @@ void main() {
   float wsum = 0.0;
   for (int i = -1; i <= 1; i++) {
     for (int j = -1; j <= 1; j++) {
-      vec2 o = vec2(float(i), float(j)) * 2.5 * uDpr;
+      vec2 o = vec2(float(i), float(j)) * 1.4 * uDpr;
       float k = (i == 0 && j == 0) ? 2.0 : 1.0;
       col += k * vec3(sampleAt(sp + o + n * split).r, sampleAt(sp + o).g, sampleAt(sp + o - n * split).b);
       wsum += k;
@@ -77,11 +77,11 @@ void main() {
 
   // A touch more colour, then the tint.
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
-  col = mix(vec3(luma), col, 1.18);
+  col = mix(vec3(luma), col, 1.22);
   col = mix(col, uTint.rgb, uTint.a);
 
   // Light: a bright rim where the glass curves, and a soft highlight on top.
-  float rim = pow(t, 4.0) * 0.30;
+  float rim = pow(t, 4.0) * 0.34;
   float topLight = smoothstep(0.55, 0.0, p.y / uSize.y) * 0.08;
   col += vec3(rim + topLight);
 
@@ -157,7 +157,8 @@ export function LiquidGlass({ radius }: { radius: number }) {
       gl.uniform1f(u("uRadius"), radius * dpr);
       gl.uniform1f(u("uDpr"), dpr);
       const dark = isDark();
-      gl.uniform4f(u("uTint"), dark ? 0.07 : 1, dark ? 0.08 : 1, dark ? 0.1 : 1, dark ? 0.3 : 0.34);
+      // A light veil only: the glass should read as clear, with the bend and rim doing the work.
+      gl.uniform4f(u("uTint"), dark ? 0.07 : 1, dark ? 0.08 : 1, dark ? 0.1 : 1, dark ? 0.13 : 0.16);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
 

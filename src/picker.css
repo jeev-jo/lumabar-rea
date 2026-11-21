@@ -1,4 +1,5 @@
-/* Widget picker: sidebar of categories, live preview cards, and the arrange banner. */
+/* Widget picker: the settings window's sidebar style, a header with where new
+   widgets go, the arrange-mode bar, and cards with a live preview of each tile. */
 
 html.picker-page,
 html.picker-page body,
@@ -10,7 +11,7 @@ html.picker-page #root {
 .picker2 {
   height: 100%;
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 230px 1fr;
 }
 
 .glyph {
@@ -21,33 +22,62 @@ html.picker-page #root {
 /* ---- sidebar ---- */
 
 .picker2 aside {
-  padding: 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 2px;
+  padding: 18px 10px;
   border-right: 1px solid var(--border);
-  background: var(--card-bg);
+  background: color-mix(in srgb, var(--page-bg) 70%, var(--panel-bg));
+  overflow-y: auto;
+}
+
+.picker2 .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 8px 14px;
+}
+
+.picker2 .brand .logo {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(140deg, #6aa8ff, #8b6cff);
+  color: #fff;
+  font-size: 16px;
+  flex: none;
+}
+
+.picker2 .brand .name {
+  font-weight: 600;
+}
+
+.picker2 .brand .version {
+  font-size: 12px;
+  opacity: 0.6;
 }
 
 .search {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
-  height: 36px;
-  border-radius: 18px;
-  background: var(--hover);
+  height: 34px;
+  margin: 0 2px 10px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--card-bg);
   border: 1px solid var(--border);
-  box-shadow: var(--highlight);
+  border-bottom-color: var(--dot);
 }
 
 .search:focus-within {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  border-bottom: 2px solid var(--accent);
 }
 
 .search .glyph {
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.7;
 }
 
@@ -68,13 +98,14 @@ html.picker-page #root {
 }
 
 .picker2 nav button {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   height: 36px;
-  padding: 0 10px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 6px;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -87,15 +118,26 @@ html.picker-page #root {
 }
 
 .picker2 nav button.on {
+  background: var(--active);
+  font-weight: 600;
+}
+
+.picker2 nav button.on::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 2px;
   background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: var(--highlight);
 }
 
 .picker2 nav .glyph {
   width: 18px;
   font-size: 15px;
   text-align: center;
+  opacity: 0.85;
 }
 
 .picker2 nav .label {
@@ -103,34 +145,77 @@ html.picker-page #root {
 }
 
 .picker2 nav .count {
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 9px;
   font-size: 11px;
-  opacity: 0.65;
+  font-weight: 400;
+  text-align: center;
+  opacity: 0.6;
   font-variant-numeric: tabular-nums;
 }
 
 /* ---- main ---- */
 
-.picker2 main {
-  overflow: auto;
-  padding: 18px 24px 28px;
+html.picker-page .picker2 main {
+  max-width: none;
+  margin: 0;
+  overflow-y: auto;
+  padding: 26px 32px 36px;
 }
 
 .picker2 header {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.picker2 header .heading {
+  flex: 1;
+  min-width: 0;
 }
 
 .picker2 h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.picker2 header p {
+  margin: 4px 0 0;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+.add-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.add-side > span {
+  opacity: 0.7;
+}
+
+.picker2 section {
+  margin-bottom: 26px;
+}
+
+.picker2 h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px 2px;
+  font-size: 14px;
   font-weight: 600;
 }
 
-.picker2 header .sub {
-  font-size: 12px;
-  opacity: 0.65;
+.picker2 h2 .glyph {
+  color: var(--accent);
+  font-size: 14px;
 }
 
 .pill {
@@ -143,186 +228,29 @@ html.picker-page #root {
   white-space: nowrap;
 }
 
-.picker2 section {
-  margin-bottom: 22px;
-}
-
-.picker2 h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 600;
-  opacity: 0.8;
-}
-
-.picker2 h2 .glyph {
-  color: var(--accent);
-}
-
-/* ---- size chips ---- */
-
-.chips {
-  display: inline-flex;
-  padding: 2px;
-  gap: 2px;
-  border-radius: 8px;
-  background: var(--hover);
-}
-
-.chips button {
-  width: 26px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: default;
-}
-
-.chips button:hover {
-  background: var(--hover);
-}
-
-.chips button.on {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-/* ---- widget cards ---- */
-
-.pgrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
-}
-
-.pcard {
-  display: flex;
-  flex-direction: column;
-  border-radius: 14px;
-  overflow: hidden;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  box-shadow: var(--highlight);
-  transition: transform 140ms, border-color 140ms;
-}
-
-.pcard:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent);
-}
-
-/* A slice of dock behind the live tile, larger than life. */
-.stage {
-  height: 104px;
-  display: grid;
-  place-items: center;
-  background: radial-gradient(120% 140% at 50% 0%, var(--hover), transparent 70%);
-  border-bottom: 1px solid var(--border);
-}
-
-.bar-sample {
-  padding: 6px;
-  border-radius: 12px;
-  background: var(--bar-bg);
-  border: 1px solid var(--border);
-  box-shadow: var(--highlight);
-  transform: scale(1.25);
-  --btn: 42px;
-}
-
-.pcard-body {
-  padding: 12px 14px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-}
-
-.pcard-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.pcard-body p {
-  margin: 0;
-  font-size: 12px;
-  opacity: 0.7;
-  line-height: 1.4;
-  flex: 1;
-}
-
-.pcard-actions {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.pcard-actions .add {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-  font-family: "Segoe Fluent Icons", "Segoe UI Variable", "Segoe UI", sans-serif;
-}
-
-.pcard-actions .add.done {
-  background: var(--series-3);
-  border-color: var(--series-3);
-}
-
-.none {
-  opacity: 0.7;
-}
-
-/* The settings page's centred column doesn't apply here. */
-html.picker-page .picker2 main {
-  max-width: none;
-  margin: 0;
-  padding: 18px 24px 28px;
-}
-
-html.picker-page .picker2 header {
-  margin-bottom: 14px;
-}
-
-/* ---- header controls ---- */
-
-.picker2 header .spacer {
-  flex: 1;
-}
-
-.chips.wide button {
-  width: auto;
-  padding: 0 10px;
-}
-
-/* ---- arrange-on-the-dock banner ---- */
+/* ---- arrange-mode bar ---- */
 
 .edit-banner {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 22px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--bar-bg);
-  border: 1.5px dashed var(--accent);
-  box-shadow: var(--highlight);
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--card-bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
 .edit-banner > .glyph {
-  font-size: 22px;
-  color: var(--accent);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 15px;
+  flex: none;
 }
 
 .edit-banner div {
@@ -332,19 +260,179 @@ html.picker-page .picker2 header {
   gap: 2px;
 }
 
+.edit-banner b {
+  font-size: 14px;
+}
+
 .edit-banner span {
   font-size: 12px;
   opacity: 0.75;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
-.edit-banner button {
-  font: inherit;
-  font-weight: 600;
+/* ---- size choice ---- */
+
+.sizes {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--hover);
+}
+
+.sizes button {
+  width: 26px;
+  height: 22px;
+  padding: 0;
   border: 0;
-  border-radius: 8px;
-  padding: 7px 18px;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.sizes button:hover {
+  background: var(--hover);
+}
+
+.sizes button.on {
   background: var(--accent);
   color: var(--on-accent);
+}
+
+/* ---- widget cards ---- */
+
+.pgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 12px;
+}
+
+.pcard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--highlight);
+  transition: border-color 120ms, box-shadow 120ms;
+}
+
+.pcard:hover {
+  border-color: color-mix(in srgb, var(--fg) 22%, transparent);
+  box-shadow: var(--highlight), 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+/* A slice of dock behind the live tile. */
+.stage {
+  position: relative;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(120% 140% at 50% 0%, var(--hover), transparent 70%),
+    color-mix(in srgb, var(--page-bg) 60%, transparent);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.bar-sample {
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--highlight), 0 4px 14px rgba(0, 0, 0, 0.25);
+  transform: scale(1.15);
+  --btn: 42px;
+  pointer-events: none;
+}
+
+.in-dock-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 10px;
+  background: var(--series-3);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pcard-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.pcard-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pcard-body p {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.68;
+  line-height: 1.45;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pcard-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pcard-actions .add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
   cursor: default;
+}
+
+.pcard-actions .add:hover {
+  filter: brightness(1.08);
+}
+
+.pcard-actions .add.done {
+  background: var(--series-3);
+  color: #fff;
+}
+
+.none {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.none span {
+  opacity: 0.65;
+  font-size: 13px;
 }

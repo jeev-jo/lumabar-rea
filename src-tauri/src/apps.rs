@@ -95,6 +95,9 @@ pub struct AppEntry {
     /// What to ask the shell for an icon (shortcut or exe).
     pub icon: String,
     pub windows: Vec<WindowInfo>,
+    /// The app's taskbar badge: a count ("3", "99+") or "•" for a status glyph.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub badge: Option<String>,
     pub active: bool,
     pub attention: bool,
 }
@@ -154,6 +157,8 @@ struct Win {
     exe: String,
     minimized: bool,
     z: usize,
+    /// The app ID the window was given, if any (for taskbar badges).
+    app_id: Option<String>,
 }
 
 unsafe extern "system" fn collect_hwnd(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -274,7 +279,8 @@ fn collect_windows() -> Vec<Win> {
             let title = window_title(hwnd);
             let mut exe = process_exe(pid)?;
             let mut key = exe.to_lowercase();
-            if let Some(id) = window_prop(hwnd, AUMID).filter(|id| is_web_app(id)) {
+            let app_id = window_prop(hwnd, AUMID);
+            if let Some(id) = app_id.as_ref().filter(|id| is_web_app(id)) {
                 key = format!("{WEB}{}", id.to_lowercase());
             } else if key.ends_with("\\applicationframehost.exe") {
                 match store_app_exe(hwnd, pid) {
@@ -298,6 +304,7 @@ fn collect_windows() -> Vec<Win> {
                 key,
                 exe,
                 z,
+                app_id,
             })
         })
         .collect()
@@ -461,6 +468,39 @@ fn package_app_id(exe: &str) -> Option<String> {
     })();
     with_map(&PKG_IDS, |m| m.insert(lower, found.clone()));
     found
+}
+
+// ---------------------------------------------------------------------------
+// Taskbar badges (the count Teams, Outlook and others put on their icon)
+// ---------------------------------------------------------------------------
+
+/// Current badges by lower-cased app ID.
+static BADGES: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
+/// Apps set badges through Windows, which keeps them with its notifications.
+/// Re-read them whenever Windows changes that store (checked every 3 seconds).
+fn watch_badges() {
+    std::thread::spawn(|| {
+        let mut stamp = None;
+        loop {
+            let now = crate::extras::notification_store_stamp();
+            if now != stamp {
+                stamp = now;
+                if let Ok(map) = crate::extras::read_badges() {
+                    let changed = {
+                        let mut b = BADGES.lock().unwrap();
+                        let changed = b.as_ref() != Some(&map);
+                        *b = Some(map);
+                        changed
+                    };
+                    if changed {
+                        notify();
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_secs(3));
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -701,6 +741,7 @@ fn snapshot() -> Vec<AppEntry> {
     let wins = collect_windows();
     let fg = unsafe { GetForegroundWindow() }.0 as isize;
     let attention = with_set(&ATTENTION, |s| s.clone());
+    let badges = BADGES.lock().unwrap().clone().unwrap_or_default();
 
     let mut groups: HashMap<&str, Vec<&Win>> = HashMap::new();
     for w in &wins {
@@ -724,12 +765,22 @@ fn snapshot() -> Vec<AppEntry> {
             .unwrap_or_default();
         // Stable order for display and for click-to-cycle.
         windows.sort_by_key(|w| w.hwnd);
+        // Badges are set per app ID: the package's own, or one a window carries.
+        let mut ids: Vec<String> = Vec::new();
+        if let Some(id) = key.strip_prefix(PKG).or_else(|| key.strip_prefix(WEB)) {
+            ids.push(id.to_string());
+        }
+        if let Some(ws) = groups.get(key) {
+            ids.extend(ws.iter().filter_map(|w| w.app_id.as_ref().map(|i| i.to_lowercase())));
+        }
+        let badge = ids.iter().find_map(|id| badges.get(id).cloned());
         AppEntry {
             key: key.to_string(),
             name,
             pinned,
             launch,
             icon,
+            badge,
             active: windows.iter().any(|w| w.hwnd as isize == fg),
             attention: windows.iter().any(|w| w.attention),
             windows,
@@ -1034,6 +1085,7 @@ unsafe extern "system" fn shell_hook_proc(
 pub fn init(app: &AppHandle, window: &WebviewWindow) -> tauri::Result<()> {
     let (tx, rx) = mpsc::channel::<()>();
     let _ = NOTIFY.set(tx);
+    watch_badges();
 
     let app = app.clone();
     std::thread::spawn(move || {

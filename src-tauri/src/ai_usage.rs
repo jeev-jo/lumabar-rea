@@ -572,8 +572,9 @@ fn claude_code_file() -> Option<PathBuf> {
 }
 
 /// Is `claude` on the PATH (npm, the native installer, WinGet or Scoop)?
-fn claude_cli_installed() -> bool {
-    // This process's PATH, plus the saved user PATH an installer may have just changed.
+/// Folders where `claude` may be: this process's PATH, the saved user PATH an
+/// installer may have just changed, and the usual npm and native-installer places.
+fn claude_search_path() -> Vec<PathBuf> {
     let mut places: Vec<PathBuf> = [std::env::var_os("PATH"), saved_env("Path")]
         .into_iter()
         .flatten()
@@ -585,7 +586,62 @@ fn claude_cli_installed() -> bool {
     if let Some(a) = user_env("APPDATA") {
         places.push(PathBuf::from(a).join("npm"));
     }
-    places.iter().any(|d| ["claude.exe", "claude.cmd", "claude.ps1"].iter().any(|f| d.join(f).is_file()))
+    places
+}
+
+/// The `claude` command on this PC, if installed.
+fn claude_cli() -> Option<PathBuf> {
+    claude_search_path()
+        .iter()
+        .flat_map(|d| ["claude.exe", "claude.cmd"].map(|f| d.join(f)))
+        .find(|p| p.is_file())
+}
+
+fn claude_cli_installed() -> bool {
+    claude_cli().is_some()
+}
+
+/// When the dock last asked Claude Code to renew its sign-in.
+static LAST_RENEW: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+
+/// Claude Code renews its own sign-in whenever it runs. `claude auth status`
+/// is the lightest way to make it run: it renews an expired sign-in, uses no
+/// Claude usage, and opens no window. At most once every 10 minutes.
+fn renew_claude_sign_in() -> bool {
+    {
+        let mut last = LAST_RENEW.lock().unwrap();
+        if now_ms().saturating_sub(*last) < 10 * 60 * 1000 {
+            return false;
+        }
+        *last = now_ms();
+    }
+    let Some(cli) = claude_cli() else { return false };
+    let path = std::env::join_paths(claude_search_path()).ok();
+    let mut cmd = if cli.extension().is_some_and(|e| e.eq_ignore_ascii_case("cmd")) {
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/C").arg(&cli);
+        c
+    } else {
+        std::process::Command::new(&cli)
+    };
+    cmd.args(["auth", "status", "--json"])
+        .stdin(std::process::Stdio::null())
+        .creation_flags(0x0800_0000);
+    if let Some(p) = path {
+        cmd.env("PATH", p);
+    }
+    let Ok(mut child) = cmd.stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn() else {
+        return false;
+    };
+    // Normally about a second; don't hang the widget if it never returns.
+    for _ in 0..150 {
+        if let Ok(Some(status)) = child.try_wait() {
+            return status.success();
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let _ = child.kill();
+    false
 }
 
 /// Why plan limits can't be read yet, in words the user can act on, or None
@@ -636,29 +692,52 @@ fn meter_rank(label: &str) -> u8 {
     }
 }
 
-fn claude_code() -> Result<Reading, String> {
-    let file = claude_code_file()
-        .ok_or_else(|| claude_code_missing().unwrap_or_default())?;
-    let creds: Value = serde_json::from_str(&fs::read_to_string(&file).map_err(|e| e.to_string())?)
-        .map_err(|_| "Claude Code's sign-in file isn't in a format this build understands.")?;
-    let token = creds
-        .pointer("/claudeAiOauth/accessToken")
-        .and_then(|v| v.as_str())
-        .ok_or("Claude Code is signed in without a Claude.ai subscription (no plan token). Run claude, type /login and choose your Claude subscription.")?;
-    if let Some(exp) = creds.pointer("/claudeAiOauth/expiresAt").and_then(|v| v.as_u64()) {
-        if exp < now_ms() {
-            return Err("Claude Code's sign-in has expired. Open Claude Code once to renew it.".into());
+/// Claude Code's plan token, renewing an expired sign-in through Claude Code
+/// itself when it can.
+fn claude_token(force_renew: bool) -> Result<String, String> {
+    let read = || -> Result<(String, Option<u64>), String> {
+        let file = claude_code_file().ok_or_else(|| claude_code_missing().unwrap_or_default())?;
+        let creds: Value = serde_json::from_str(&fs::read_to_string(&file).map_err(|e| e.to_string())?)
+            .map_err(|_| "Claude Code's sign-in file isn't in a format this build understands.")?;
+        let token = creds
+            .pointer("/claudeAiOauth/accessToken")
+            .and_then(|v| v.as_str())
+            .ok_or("Claude Code is signed in without a Claude.ai subscription (no plan token). Run claude, type /login and choose your Claude subscription.")?;
+        Ok((token.to_string(), creds.pointer("/claudeAiOauth/expiresAt").and_then(|v| v.as_u64())))
+    };
+    let (token, exp) = read()?;
+    // Renew a minute early, so the token doesn't run out mid-request.
+    let stale = force_renew || exp.is_some_and(|e| e < now_ms() + 60_000);
+    if !stale {
+        return Ok(token);
+    }
+    if renew_claude_sign_in() {
+        let (token, exp) = read()?;
+        if exp.is_none_or(|e| e > now_ms()) {
+            return Ok(token);
         }
     }
+    Err("Claude Code's sign-in has expired and couldn't be renewed. Run claude once in a terminal.".into())
+}
+
+fn claude_code() -> Result<Reading, String> {
+    match claude_code_with(claude_token(false)?) {
+        // Rejected although not past its expiry time: renew once and retry.
+        Err(e) if e == EXPIRED => claude_code_with(claude_token(true)?),
+        other => other,
+    }
+}
+
+const EXPIRED: &str = "Claude Code's sign-in has expired. Run claude once in a terminal to renew it.";
+
+fn claude_code_with(token: String) -> Result<Reading, String> {
     let body: Value = agent()
         .get("https://api.anthropic.com/api/oauth/usage")
         .set("Authorization", &format!("Bearer {token}"))
         .set("anthropic-beta", "oauth-2025-04-20")
         .call()
         .map_err(|e| match e {
-            ureq::Error::Status(401, _) => {
-                "Claude Code's sign-in has expired. Open Claude Code once to renew it.".to_string()
-            }
+            ureq::Error::Status(401, _) => EXPIRED.to_string(),
             other => http_error("Anthropic", other),
         })?
         .into_json()
@@ -822,6 +901,7 @@ fn icon_sources(service: &str) -> &'static [&'static str] {
 fn icon_domain(service: &str) -> Option<&'static str> {
     Some(match service {
         "stripe" => "stripe.com",
+        "whatsapp" => "www.whatsapp.com",
         "polar" => "polar.sh",
         "dodo" => "dodopayments.com",
         "shopify" => "www.shopify.com",
@@ -1023,5 +1103,17 @@ mod tests {
         // The weekly window already reset, so it reads 0.
         assert_eq!(r.meters[1].percent, 0.0);
         assert_eq!(r.lines, vec![("Plan".to_string(), "Plus".to_string())]);
+    }
+}
+
+#[cfg(test)]
+mod claude_renew_tests {
+    /// Runs the real `claude auth status` (no usage); needs Claude Code installed.
+    #[test]
+    #[ignore]
+    fn live_renew_claude_sign_in() {
+        assert!(super::claude_cli().is_some(), "claude not found");
+        assert!(super::renew_claude_sign_in(), "claude auth status failed");
+        assert!(super::claude_token(false).is_ok());
     }
 }

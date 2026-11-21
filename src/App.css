@@ -360,3 +360,72 @@ body,
 .peek:active {
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
+
+/* ---- a new version is ready ---- */
+
+.update-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.update-pill:hover { filter: brightness(1.1); }
+.update-pill:disabled { opacity: 0.8; cursor: progress; }
+
+/* ---- taskbar badge: the count an app puts on its icon (Teams, Outlook…) ---- */
+
+.app .badge {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: #e0393e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 1.5px var(--bar-bg);
+  pointer-events: none;
+}
+
+.app .badge.dot {
+  min-width: 10px;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  top: 5px;
+  right: 5px;
+}
+
+/* Liquid glass is nearly clear, so lift text and icons off busy wallpapers. */
+:root[data-style="liquid"] .bar {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+:root[data-style="liquid"] .bar .app img {
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.35));
+}
+:root[data-style="liquid"][data-theme="light"] .bar {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-style="liquid"][data-theme="system"] .bar {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+  }
+}

@@ -278,7 +278,9 @@ const DEMO_TOP: TopApps = {
   uptime: 3600,
 };
 const loadPct = (v: number) => `${v < 10 ? v.toFixed(1) : Math.round(v)}%`;
-const AppGlyph = ({ exe }: { exe: string }) => (exe ? <AppIcon exe={exe} /> : <span className="glyph">{G.apps}</span>);
+// The app's own icon; without one (previews), its initial in a rounded square.
+const AppGlyph = ({ exe, name }: { exe: string; name: string }) =>
+  exe ? <AppIcon exe={exe} /> : <span className="letter">{name.slice(0, 1)}</span>;
 
 function TopTile({ instance, preview, by }: WidgetProps & { by: "cpu" | "memory" }) {
   const [t] = usePoll<TopApps>("top_apps", 3000, DEMO_TOP, preview);
@@ -294,7 +296,7 @@ function TopTile({ instance, preview, by }: WidgetProps & { by: "cpu" | "memory"
       <small className="lbl">{by === "cpu" ? "CPU" : "RAM"}</small>
       {rows.slice(0, n).map((a) => (
         <span key={a.exe || a.name} className="app">
-          <AppGlyph exe={a.exe} />
+          <AppGlyph exe={a.exe} name={a.name} />
           <b>{show(a)}</b>
         </span>
       ))}

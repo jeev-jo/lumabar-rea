@@ -467,3 +467,166 @@ pub fn screenshot(mode: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+
+// ---------------------------------------------------------------------------
+// Messages waiting in Windows' notification center (WhatsApp)
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+pub struct AppMessage {
+    pub title: String,
+    pub text: String,
+    /// Milliseconds since 1970.
+    pub at: i64,
+}
+
+#[derive(serde::Serialize)]
+pub struct AppMessages {
+    /// Whether the app was found among Windows' notification senders at all.
+    pub known: bool,
+    pub count: usize,
+    pub items: Vec<AppMessage>,
+}
+
+fn xml_unescape(s: &str) -> String {
+    s.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&#39;", "'").replace("&amp;", "&")
+}
+
+/// The `<text>` lines of a toast's XML.
+fn toast_texts(xml: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = xml;
+    while let Some(i) = rest.find("<text") {
+        rest = &rest[i + 5..];
+        let Some(open_end) = rest.find('>') else { break };
+        if rest[..open_end].ends_with('/') {
+            rest = &rest[open_end + 1..];
+            continue;
+        }
+        let body = &rest[open_end + 1..];
+        let Some(close) = body.find("</text>") else { break };
+        let t = xml_unescape(body[..close].trim());
+        if !t.is_empty() {
+            out.push(t);
+        }
+        rest = &body[close..];
+    }
+    out
+}
+
+fn notification_dir() -> Option<PathBuf> {
+    Some(PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join(r"Microsoft\Windows\Notifications"))
+}
+
+/// Changes whenever Windows writes to its notification store.
+pub(crate) fn notification_store_stamp() -> Option<(std::time::SystemTime, u64)> {
+    let dir = notification_dir()?;
+    ["wpndatabase.db-wal", "wpndatabase.db"]
+        .iter()
+        .filter_map(|f| std::fs::metadata(dir.join(f)).ok())
+        .filter_map(|m| Some((m.modified().ok()?, m.len())))
+        .max_by_key(|(t, _)| *t)
+}
+
+/// Run `f` on a private copy of Windows' notification store (Windows keeps
+/// the real one locked). Each caller gets its own copy.
+fn with_notification_db<R>(tag: &str, f: impl FnOnce(&rusqlite::Connection) -> Result<R, String>) -> Result<R, String> {
+    let src = notification_dir().ok_or("no LOCALAPPDATA")?;
+    let tmp = std::env::temp_dir().join(format!("luma_ai_bar_wpn_{tag}"));
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    for name in ["wpndatabase.db", "wpndatabase.db-wal", "wpndatabase.db-shm"] {
+        let (from, to) = (src.join(name), tmp.join(name));
+        if from.exists() {
+            std::fs::copy(&from, &to).map_err(|e| format!("couldn't read Windows' notifications: {e}"))?;
+        } else {
+            let _ = std::fs::remove_file(&to);
+        }
+    }
+    let out = {
+        let db = rusqlite::Connection::open(tmp.join("wpndatabase.db")).map_err(|e| e.to_string())?;
+        f(&db)
+    };
+    let _ = std::fs::remove_dir_all(&tmp);
+    out
+}
+
+/// Taskbar badges by lower-cased app ID: a count ("3", "99+"), or "•" for a
+/// status glyph such as "newMessage" or "alert". Zero and "none" are left out.
+pub(crate) fn read_badges() -> Result<std::collections::HashMap<String, String>, String> {
+    with_notification_db("badges", |db| {
+        let mut stmt = db
+            .prepare(
+                "SELECT h.PrimaryId, n.Payload FROM Notification n JOIN NotificationHandler h ON h.RecordId = n.HandlerId \
+                 WHERE n.Type = 'badge' ORDER BY n.ArrivalTime",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<Vec<u8>>>(1)?.unwrap_or_default())))
+            .map_err(|e| e.to_string())?;
+        let mut out = std::collections::HashMap::new();
+        for (id, payload) in rows.flatten() {
+            let xml = String::from_utf8_lossy(&payload);
+            let Some(start) = xml.find("value=\"").map(|i| i + 7) else { continue };
+            let value = xml[start..].split('"').next().unwrap_or_default().trim().to_string();
+            let shown = match value.parse::<u32>() {
+                Ok(0) => None,
+                Ok(n) if n > 99 => Some("99+".to_string()),
+                Ok(n) => Some(n.to_string()),
+                Err(_) if value.is_empty() || value == "none" => None,
+                Err(_) => Some("•".to_string()),
+            };
+            let id = id.to_lowercase();
+            match shown {
+                Some(v) => {
+                    out.insert(id, v);
+                }
+                None => {
+                    out.remove(&id);
+                }
+            }
+        }
+        Ok(out)
+    })
+}
+
+/// Notifications from one app that are still in the notification center, read
+/// from Windows' own notification store. `app` is matched against the sender's
+/// app ID, e.g. "whatsapp".
+#[tauri::command]
+pub async fn app_messages(app: String) -> Result<AppMessages, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        with_notification_db("messages", |db| {
+            let like = format!("%{}%", app.to_lowercase());
+            let known: bool = db
+                .query_row("SELECT EXISTS(SELECT 1 FROM NotificationHandler WHERE lower(PrimaryId) LIKE ?1)", [&like], |r| r.get(0))
+                .unwrap_or(false);
+            let mut stmt = db
+                .prepare(
+                    "SELECT n.Payload, n.ArrivalTime FROM Notification n JOIN NotificationHandler h ON h.RecordId = n.HandlerId \
+                     WHERE n.Type = 'toast' AND lower(h.PrimaryId) LIKE ?1 ORDER BY n.ArrivalTime DESC",
+                )
+                .map_err(|e| e.to_string())?;
+            let rows = stmt
+                .query_map([&like], |r| {
+                    let payload: Vec<u8> = r.get::<_, Option<Vec<u8>>>(0)?.unwrap_or_default();
+                    let arrival: i64 = r.get::<_, Option<i64>>(1)?.unwrap_or(0);
+                    Ok((payload, arrival))
+                })
+                .map_err(|e| e.to_string())?;
+            let mut items = Vec::new();
+            for (payload, arrival) in rows.flatten() {
+                let texts = toast_texts(&String::from_utf8_lossy(&payload));
+                items.push(AppMessage {
+                    title: texts.first().cloned().unwrap_or_default(),
+                    text: texts.get(1..).map(|t| t.join(" ")).unwrap_or_default(),
+                    // FILETIME: 100 ns ticks since 1601.
+                    at: arrival / 10_000 - 11_644_473_600_000,
+                });
+            }
+            Ok(AppMessages { known, count: items.len(), items })
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}

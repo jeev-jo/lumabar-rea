@@ -218,20 +218,38 @@ function Timeline({ hours, now, rise, set, tall }: { hours: number[]; now: Date;
   return (
     <div className={`timeline${tall ? " tall" : ""}`}>
       {rise !== null && set !== null && <span className="daylight" style={{ left: `${(rise / 24) * 100}%`, width: `${((set - rise) / 24) * 100}%` }} />}
-      {hours.map((s, i) => (
-        <i key={i} style={{ height: `${Math.max(s > 0 ? 12 : 0, Math.min(1, s / 3600) * 100)}%` }} className={i > h ? "future" : ""} />
+      {/* 6 am, noon and 6 pm */}
+      {[6, 12, 18].map((x) => (
+        <span key={x} className="tick" style={{ left: `${(x / 24) * 100}%` }} />
       ))}
-      <span className="nowline" style={{ left: `${(h / 24) * 100}%` }} />
+      {hours.map((s, i) => (
+        <i
+          key={i}
+          style={{ height: `${Math.max(s > 0 ? 14 : 0, Math.min(1, s / 3600) * 100)}%` }}
+          className={i > h ? "future" : s >= 2700 ? "busy" : ""}
+        />
+      ))}
+      <span className="nowline" style={{ left: `${(h / 24) * 100}%` }}>
+        <span className="now-dot" />
+      </span>
     </div>
   );
 }
+
+const hmShort = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m` : `${Math.floor(s / 60)}m`);
 
 export function DayTimelineTile({ instance, preview }: WidgetProps<WeatherConfig>) {
   const now = new Date(useTick(60_000));
   const t = useToday(preview);
   const { w } = useWeather(instance.config, preview);
   return (
-    <div className={`w-timeline ${instance.size}`} title={t ? `On the PC ${Math.round(t.total / 360) / 10}h today` : "Your day"}>
+    <div className={`w-timeline ${instance.size}`} title={t ? `On the PC ${hmShort(t.total)} today` : "Your day"}>
+      {instance.size === "l" && (
+        <span className="tl-total">
+          <b>{t ? hmShort(t.total) : "–"}</b>
+          <small>today</small>
+        </span>
+      )}
       <Timeline hours={t?.hours ?? Array(24).fill(0)} now={now} rise={hourOf(w?.days[0]?.sunrise)} set={hourOf(w?.days[0]?.sunset)} />
     </div>
   );

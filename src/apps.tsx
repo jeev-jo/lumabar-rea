@@ -17,6 +17,8 @@ export type AppEntry = {
   launch: string;
   icon: string;
   windows: WindowInfo[];
+  /** Taskbar badge the app set: a count ("3", "99+") or "•". */
+  badge?: string;
   active: boolean;
   attention: boolean;
 };
@@ -121,7 +123,7 @@ export function AppButton({ app, onDragStartPin, onDropOnPin }: Props) {
   const icon = useIcon(app.icon);
   const running = app.windows.length > 0;
   // Running apps get a preview instead of a tooltip.
-  const label = running ? undefined : app.name;
+  const label = running ? undefined : app.badge && app.badge !== "•" ? `${app.name} (${app.badge} new)` : app.name;
 
   const classes = ["app"];
   if (running) classes.push("running");
@@ -165,6 +167,11 @@ export function AppButton({ app, onDragStartPin, onDropOnPin }: Props) {
       }}
     >
       {icon ? <img src={icon} alt="" draggable={false} /> : <span className="fallback">{app.name.slice(0, 1)}</span>}
+      {app.badge && (
+        <span className={`badge${app.badge === "•" ? " dot" : ""}`} aria-label={app.badge === "•" ? "New activity" : `${app.badge} new`}>
+          {app.badge === "•" ? "" : app.badge}
+        </span>
+      )}
       <span className="dots">
         {running &&
           app.windows.slice(0, 3).map((w) => <i key={w.hwnd} />)}

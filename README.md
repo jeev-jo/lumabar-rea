@@ -16,7 +16,7 @@ Built with [Tauri 2](https://tauri.app) (Rust + WebView2) and React. It's an ind
 
 **Widgets**, on the left or right of the apps, in three sizes. Rest the pointer on one to glance at its details, or click to keep them open.
 
-109 widgets in 13 groups:
+110 widgets in 13 groups:
 
 | | |
 |---|---|
@@ -25,7 +25,7 @@ Built with [Tauri 2](https://tauri.app) (Rust + WebView2) and React. It's an ind
 | **Media** | Now playing (four looks), speakers, microphone, wallpaper (with *Next background* for Windows Spotlight and slideshows) |
 | **Clocks** | Clock, flip clock, segment clock, analog, world clocks, world time, date, day number, today, clock and weather, 7 days |
 | **Weather** | Weather, details, today and forecast, status, hourly, sunrise and sunset |
-| **Productivity** | Screen time (synced with Windows' own record), day timeline, to-do, notes, pomodoro, timer, stopwatch, calendar (iCal address), currency, progress |
+| **Productivity** | WhatsApp (messages waiting, from Windows' notifications), screen time (synced with Windows' own record), day timeline, to-do, notes, pomodoro, timer, stopwatch, calendar (iCal address), currency, progress |
 | **Apps & Files** | Apps, recently opened, search, commands, screenshot, storage, Recycle Bin |
 | **Online & Mail** | Wallpaper gallery, mail (IMAP with an app password), GitHub activity, notifications and overview, LeetCode |
 | **Finance** | Total revenue, plus Stripe, Polar, Dodo Payments, Shopify, Lemon Squeezy, Paddle and Gumroad, each as a number or a chart |
