@@ -1,6 +1,6 @@
 [package]
 name = "luma-ai-bar"
-version = "0.2.4"
+version = "0.2.5"
 description = "A dock for Windows 11"
 authors = ["you"]
 edition = "2024"
