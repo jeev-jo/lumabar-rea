@@ -604,9 +604,50 @@ fn claude_cli_installed() -> bool {
 /// When the dock last asked Claude Code to renew its sign-in.
 static LAST_RENEW: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
 
-/// Claude Code renews its own sign-in whenever it runs. `claude auth status`
-/// is the lightest way to make it run: it renews an expired sign-in, uses no
-/// Claude usage, and opens no window. At most once every 10 minutes.
+/// Is the sign-in Claude Code saved good for at least another minute?
+fn claude_sign_in_fresh() -> bool {
+    claude_code_file()
+        .and_then(|f| fs::read_to_string(f).ok())
+        .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+        .and_then(|c| c.pointer("/claudeAiOauth/expiresAt").and_then(|v| v.as_u64()))
+        .is_some_and(|e| e > now_ms() + 60_000)
+}
+
+/// Run one `claude` subcommand quietly: no window, no input, from the temp
+/// folder (some commands read settings in the current folder), at most 30 s.
+fn run_claude(cli: &std::path::Path, args: &[&str]) -> bool {
+    let mut cmd = if cli.extension().is_some_and(|e| e.eq_ignore_ascii_case("cmd")) {
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/C").arg(cli);
+        c
+    } else {
+        std::process::Command::new(cli)
+    };
+    cmd.args(args)
+        .current_dir(std::env::temp_dir())
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .creation_flags(0x0800_0000);
+    if let Ok(p) = std::env::join_paths(claude_search_path()) {
+        cmd.env("PATH", p);
+    }
+    let Ok(mut child) = cmd.spawn() else { return false };
+    for _ in 0..300 {
+        if let Ok(Some(status)) = child.try_wait() {
+            return status.success();
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let _ = child.kill();
+    false
+}
+
+/// Claude Code renews its own sign-in when it starts up and talks to its
+/// servers. Which of its commands do that, without using any Claude usage,
+/// has changed between versions (`auth status` did in 2.1.328 but not in
+/// 2.1.330; `doctor` does), so try them in turn and stop as soon as the saved
+/// sign-in is fresh again. At most once every 10 minutes.
 fn renew_claude_sign_in() -> bool {
     {
         let mut last = LAST_RENEW.lock().unwrap();
@@ -616,31 +657,12 @@ fn renew_claude_sign_in() -> bool {
         *last = now_ms();
     }
     let Some(cli) = claude_cli() else { return false };
-    let path = std::env::join_paths(claude_search_path()).ok();
-    let mut cmd = if cli.extension().is_some_and(|e| e.eq_ignore_ascii_case("cmd")) {
-        let mut c = std::process::Command::new("cmd");
-        c.arg("/C").arg(&cli);
-        c
-    } else {
-        std::process::Command::new(&cli)
-    };
-    cmd.args(["auth", "status", "--json"])
-        .stdin(std::process::Stdio::null())
-        .creation_flags(0x0800_0000);
-    if let Some(p) = path {
-        cmd.env("PATH", p);
-    }
-    let Ok(mut child) = cmd.stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn() else {
-        return false;
-    };
-    // Normally about a second; don't hang the widget if it never returns.
-    for _ in 0..150 {
-        if let Ok(Some(status)) = child.try_wait() {
-            return status.success();
+    for args in [&["auth", "status", "--json"][..], &["doctor"][..]] {
+        run_claude(&cli, args);
+        if claude_sign_in_fresh() {
+            return true;
         }
-        std::thread::sleep(Duration::from_millis(100));
     }
-    let _ = child.kill();
     false
 }
 
@@ -717,7 +739,7 @@ fn claude_token(force_renew: bool) -> Result<String, String> {
             return Ok(token);
         }
     }
-    Err("Claude Code's sign-in has expired and couldn't be renewed. Run claude once in a terminal.".into())
+    Err("Claude Code's sign-in has expired and couldn't be renewed automatically. Run claude once in a terminal; the dock tries again every 10 minutes.".into())
 }
 
 fn claude_code() -> Result<Reading, String> {

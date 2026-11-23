@@ -101,6 +101,9 @@ pub struct Settings {
     pub peek_button: bool,
     /// What to do about new versions: "notify", "auto" (install) or "off".
     pub updates: String,
+    /// Whether "Start with Windows" has been switched on by default yet. Done
+    /// once, on the installed app's first run; after that it's the user's call.
+    pub autostart_defaulted: bool,
 }
 
 impl Default for Settings {
@@ -117,6 +120,7 @@ impl Default for Settings {
             glance: true,
             peek_button: true,
             updates: "notify".into(),
+            autostart_defaulted: false,
         }
     }
 }
@@ -386,10 +390,21 @@ pub fn set_autostart(enabled: bool) -> Result<bool, String> {
     Ok(get_autostart())
 }
 
-/// Keep "Start with Windows" pointing at this exe, so it still works after
-/// an update or a reinstall to another folder. Dev builds leave it alone.
+/// A dock that replaces the taskbar has to be there after a restart, so the
+/// installed app turns "Start with Windows" on the first time it runs (and on
+/// the first run of an update from a version that didn't). If the user turns
+/// it off later, it stays off. Otherwise keep it pointing at this exe, so it
+/// still works after an update or a reinstall to another folder. Dev builds
+/// leave it alone.
 pub fn refresh_autostart() {
-    if cfg!(not(debug_assertions)) && get_autostart() {
+    if cfg!(debug_assertions) {
+        return;
+    }
+    if !get().autostart_defaulted {
+        if set_autostart(true).is_ok() {
+            update(|s| s.autostart_defaulted = true);
+        }
+    } else if get_autostart() {
         let _ = set_autostart(true);
     }
 }
