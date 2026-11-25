@@ -476,8 +476,32 @@ fn package_app_id(exe: &str) -> Option<String> {
 
 /// Current badges and waiting notifications, by lower-cased app ID.
 static BADGES: Mutex<Option<crate::extras::NotificationCounts>> = Mutex::new(None);
+/// When each app (by key) was last in front: notifications from before then
+/// have been seen.
+static LAST_USED: Mutex<Option<HashMap<String, i64>>> = Mutex::new(None);
 /// App IDs of desktop apps, from their Start menu shortcuts: exe path -> IDs.
 static EXE_IDS: Mutex<Option<HashMap<String, Vec<String>>>> = Mutex::new(None);
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// A count at the start of a window title, as mail, chat and web apps write
+/// it: "(3) Inbox", "[12] Slack". Zero and implausible numbers are ignored.
+fn title_count(title: &str) -> Option<u32> {
+    let t = title.trim_start();
+    let close = match t.chars().next()? {
+        '(' => ')',
+        '[' => ']',
+        _ => return None,
+    };
+    let end = t.find(close)?;
+    let n: u32 = t[1..end].trim().trim_end_matches('+').parse().ok()?;
+    (n > 0 && n < 100_000).then_some(n)
+}
 
 /// Desktop apps' Start menu shortcuts often carry the app ID they send
 /// notifications under (Slack, classic Outlook...), which their windows don't.
@@ -820,12 +844,40 @@ fn snapshot() -> Vec<AppEntry> {
             ids.extend(more.iter().cloned());
         }
         let wants_attention = windows.iter().any(|w| w.attention);
-        // The app's own badge first. If it has none but is asking for
-        // attention, show how many of its notifications are waiting.
-        let badge = ids.iter().find_map(|id| counts.badges.get(id).cloned()).or_else(|| {
-            let n = ids.iter().filter_map(|id| counts.waiting.get(id)).max().copied().unwrap_or(0);
-            (wants_attention && n > 0).then(|| if n > 9 { "9+".to_string() } else { n.to_string() })
-        });
+        let active = windows.iter().any(|w| w.hwnd as isize == fg);
+        let now = now_ms();
+        // Notifications count as new until the app is next used, and for 12
+        // hours at most (Windows keeps old ones until they're cleared).
+        let seen = {
+            let mut used = LAST_USED.lock().unwrap();
+            let used = used.get_or_insert_with(HashMap::new);
+            if active {
+                used.insert(key.to_string(), now);
+            }
+            used.get(key).copied().unwrap_or(0).max(now - 12 * 3600 * 1000)
+        };
+        let shown = |n: u32| if n > 9 { "9+".to_string() } else { n.to_string() };
+        // In order: the badge the app set through Windows; a count the app put
+        // in a window title ("(3) Inbox"); its notifications that arrived since
+        // it was last used; and, if it's asking for attention with no number
+        // anywhere (Teams draws its count itself), a dot.
+        let badge = ids
+            .iter()
+            .find_map(|id| counts.badges.get(id).cloned())
+            .or_else(|| {
+                let n = groups.get(key).into_iter().flatten().filter_map(|w| title_count(&w.title)).max()?;
+                Some(shown(n))
+            })
+            .or_else(|| {
+                let n = ids
+                    .iter()
+                    .filter_map(|id| counts.waiting.get(id))
+                    .map(|times| times.iter().filter(|&&t| t > seen).count())
+                    .max()
+                    .unwrap_or(0);
+                (n > 0 && !active).then(|| shown(n as u32))
+            })
+            .or_else(|| wants_attention.then(|| "•".to_string()));
         AppEntry {
             key: key.to_string(),
             name,
@@ -1191,6 +1243,16 @@ pub fn init(app: &AppHandle, window: &WebviewWindow) -> tauri::Result<()> {
 #[cfg(test)]
 mod badge_tests {
     use super::*;
+
+    #[test]
+    fn counts_in_titles() {
+        assert_eq!(title_count("(3) Inbox - Outlook"), Some(3));
+        assert_eq!(title_count("[12] Slack"), Some(12));
+        assert_eq!(title_count("(99+) WhatsApp"), Some(99));
+        assert_eq!(title_count("(0) Inbox"), None);
+        assert_eq!(title_count("Chat | Microsoft Teams"), None);
+        assert_eq!(title_count("(draft) notes.txt"), None);
+    }
 
     /// Reads this PC's notification store and Start menu (nothing is changed).
     #[test]

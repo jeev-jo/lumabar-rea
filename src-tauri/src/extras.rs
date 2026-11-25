@@ -557,8 +557,10 @@ pub(crate) struct NotificationCounts {
     /// Taskbar badges: a count ("3", "9+"), or "•" for a status glyph such
     /// as "newMessage" or "alert". Zero and "none" are left out.
     pub badges: std::collections::HashMap<String, String>,
-    /// How many of each app's notifications are waiting in the notification center.
-    pub waiting: std::collections::HashMap<String, usize>,
+    /// When each of an app's notifications still in the notification center
+    /// arrived (ms since 1970). Old ones stay there until cleared, so callers
+    /// count only the ones that are new to the user.
+    pub waiting: std::collections::HashMap<String, Vec<i64>>,
 }
 
 /// Desktop apps without an app ID are recorded by path, with the first folder
@@ -591,20 +593,26 @@ pub(crate) fn read_notification_counts() -> Result<NotificationCounts, String> {
     with_notification_db("badges", |db| {
         let mut stmt = db
             .prepare(
-                "SELECT h.PrimaryId, n.Type, n.Payload FROM Notification n JOIN NotificationHandler h ON h.RecordId = n.HandlerId \
+                "SELECT h.PrimaryId, n.Type, n.Payload, n.ArrivalTime FROM Notification n JOIN NotificationHandler h ON h.RecordId = n.HandlerId \
                  WHERE n.Type IN ('badge', 'toast') ORDER BY n.ArrivalTime",
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
             .query_map([], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<Vec<u8>>>(2)?.unwrap_or_default()))
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<Vec<u8>>>(2)?.unwrap_or_default(),
+                    r.get::<_, Option<i64>>(3)?.unwrap_or(0),
+                ))
             })
             .map_err(|e| e.to_string())?;
         let mut out = NotificationCounts::default();
-        for (id, kind, payload) in rows.flatten() {
+        for (id, kind, payload, arrival) in rows.flatten() {
             let id = expand_known_folder(&id);
             if kind == "toast" {
-                *out.waiting.entry(id).or_default() += 1;
+                // FILETIME: 100 ns ticks since 1601.
+                out.waiting.entry(id).or_default().push(arrival / 10_000 - 11_644_473_600_000);
                 continue;
             }
             let xml = String::from_utf8_lossy(&payload);
