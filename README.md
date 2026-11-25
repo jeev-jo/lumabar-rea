@@ -47,7 +47,7 @@ Add, remove and arrange widgets from the widget picker. While it's open, drag wi
 
 ## Install
 
-[Download the installer](https://github.com/jeev-jo/lumabar-rea/releases/latest/download/luma-ai-bar_x64.msi) (`.msi`) from the latest release and run it. The app checks GitHub Releases for updates (*Settings → About → Check now*). Every update is signed, and the app refuses one that doesn't match its built-in public key.
+[Download the installer](https://github.com/jeev-jo/lumabar-rea/releases/latest/download/luma-ai-bar_x64.msi) (`.msi`) from the latest release and run it. The app checks GitHub Releases for updates when it starts and every six hours, and shows an Update button on the dock when one is ready (*Settings → Updates* to change this or check now). Every update is signed, and the app refuses one that doesn't match its built-in public key.
 
 Windows may show a SmartScreen warning, because the installer isn't code-signed with a paid certificate.
 
@@ -90,6 +90,10 @@ npm run tauri build
 ```
 
 The installer is written to `src-tauri/target/release/bundle/msi/`.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up, how the code is laid out, and how to add a widget.
 
 ### Releasing an update
 
