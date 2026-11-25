@@ -383,26 +383,40 @@ body,
 .update-pill:hover { filter: brightness(1.1); }
 .update-pill:disabled { opacity: 0.8; cursor: progress; }
 
-/* ---- taskbar badge: the count an app puts on its icon (Teams, Outlook…) ---- */
+/* ---- taskbar badge: the count an app puts on its icon (Teams, Outlook…) ----
+   A pill pinned to the icon's top-right corner, ringed in the bar's colour so
+   it reads as sitting on top of the icon, like the Windows taskbar's. */
 
 .app .badge {
   position: absolute;
-  top: 3px;
-  right: 2px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  top: calc(50% - var(--icon) / 2 - 6px);
+  /* Anchored by its right edge, so "9+" grows over its own icon. */
+  right: calc(50% - var(--icon) / 2 - 8px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
   box-sizing: border-box;
-  border-radius: 8px;
-  background: #e0393e;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f2545b, #d63038);
   color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 16px;
-  text-align: center;
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 0 0 1.5px var(--bar-bg);
+  white-space: nowrap;
+  box-shadow: 0 0 0 2px var(--badge-ring, rgb(32, 32, 36)), 0 1px 3px rgba(0, 0, 0, 0.35);
   pointer-events: none;
+  transition: transform 140ms cubic-bezier(0.3, 0.7, 0.4, 1.4);
+  animation: badge-in 220ms cubic-bezier(0.3, 0.7, 0.4, 1.4);
+}
+
+/* Follow the icon when it grows on hover. */
+.app:hover .badge {
+  transform: translate(3px, -4px);
 }
 
 .app .badge.dot {
@@ -410,8 +424,24 @@ body,
   width: 10px;
   height: 10px;
   padding: 0;
-  top: 5px;
-  right: 5px;
+  top: calc(50% - var(--icon) / 2 - 3px);
+  right: calc(50% - var(--icon) / 2 - 4px);
+}
+
+@keyframes badge-in {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+
+:root[data-theme="light"] .app .badge {
+  --badge-ring: rgb(248, 248, 250);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] .app .badge {
+    --badge-ring: rgb(248, 248, 250);
+  }
 }
 
 /* Liquid glass is nearly clear, so lift text and icons off busy wallpapers. */

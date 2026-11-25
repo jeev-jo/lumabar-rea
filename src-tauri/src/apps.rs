@@ -95,7 +95,7 @@ pub struct AppEntry {
     /// What to ask the shell for an icon (shortcut or exe).
     pub icon: String,
     pub windows: Vec<WindowInfo>,
-    /// The app's taskbar badge: a count ("3", "99+") or "•" for a status glyph.
+    /// The app's taskbar badge: a count ("3", "9+") or "•" for a status glyph.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub badge: Option<String>,
     pub active: bool,
@@ -474,23 +474,63 @@ fn package_app_id(exe: &str) -> Option<String> {
 // Taskbar badges (the count Teams, Outlook and others put on their icon)
 // ---------------------------------------------------------------------------
 
-/// Current badges by lower-cased app ID.
-static BADGES: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+/// Current badges and waiting notifications, by lower-cased app ID.
+static BADGES: Mutex<Option<crate::extras::NotificationCounts>> = Mutex::new(None);
+/// App IDs of desktop apps, from their Start menu shortcuts: exe path -> IDs.
+static EXE_IDS: Mutex<Option<HashMap<String, Vec<String>>>> = Mutex::new(None);
+
+/// Desktop apps' Start menu shortcuts often carry the app ID they send
+/// notifications under (Slack, classic Outlook...), which their windows don't.
+fn scan_exe_ids(dir: &Path, depth: u8, out: &mut HashMap<String, Vec<String>>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for e in entries.flatten() {
+        let path = e.path();
+        if path.is_dir() {
+            if depth > 0 {
+                scan_exe_ids(&path, depth - 1, out);
+            }
+        } else if path.extension().is_some_and(|x| x.eq_ignore_ascii_case("lnk")) {
+            let p = path.to_string_lossy().into_owned();
+            if let (Some(id), Some(target)) = (lnk_app_id(&p), lnk_target(&p)) {
+                let ids = out.entry(target.to_lowercase()).or_default();
+                let id = id.to_lowercase();
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+            }
+        }
+    }
+}
 
 /// Apps set badges through Windows, which keeps them with its notifications.
-/// Re-read them whenever Windows changes that store (checked every 3 seconds).
+/// Re-read them whenever Windows changes that store (checked every 3 seconds),
+/// and the Start menu's app IDs every 10 minutes.
 fn watch_badges() {
     std::thread::spawn(|| {
+        com_init();
         let mut stamp = None;
+        let mut scanned: Option<Instant> = None;
         loop {
+            if scanned.is_none_or(|t| t.elapsed() > Duration::from_secs(600)) {
+                let mut m = HashMap::new();
+                let menu = r"Microsoft\Windows\Start Menu\Programs";
+                for var in ["APPDATA", "ProgramData"] {
+                    if let Some(base) = std::env::var_os(var) {
+                        scan_exe_ids(&Path::new(&base).join(menu), 3, &mut m);
+                    }
+                }
+                *EXE_IDS.lock().unwrap() = Some(m);
+                scanned = Some(Instant::now());
+                stamp = None;
+            }
             let now = crate::extras::notification_store_stamp();
             if now != stamp {
                 stamp = now;
-                if let Ok(map) = crate::extras::read_badges() {
+                if let Ok(counts) = crate::extras::read_notification_counts() {
                     let changed = {
                         let mut b = BADGES.lock().unwrap();
-                        let changed = b.as_ref() != Some(&map);
-                        *b = Some(map);
+                        let changed = b.as_ref() != Some(&counts);
+                        *b = Some(counts);
                         changed
                     };
                     if changed {
@@ -741,7 +781,8 @@ fn snapshot() -> Vec<AppEntry> {
     let wins = collect_windows();
     let fg = unsafe { GetForegroundWindow() }.0 as isize;
     let attention = with_set(&ATTENTION, |s| s.clone());
-    let badges = BADGES.lock().unwrap().clone().unwrap_or_default();
+    let counts = BADGES.lock().unwrap().clone().unwrap_or_default();
+    let exe_ids = EXE_IDS.lock().unwrap().clone().unwrap_or_default();
 
     let mut groups: HashMap<&str, Vec<&Win>> = HashMap::new();
     for w in &wins {
@@ -765,15 +806,26 @@ fn snapshot() -> Vec<AppEntry> {
             .unwrap_or_default();
         // Stable order for display and for click-to-cycle.
         windows.sort_by_key(|w| w.hwnd);
-        // Badges are set per app ID: the package's own, or one a window carries.
-        let mut ids: Vec<String> = Vec::new();
+        // Every ID the app's notifications might be filed under: the package's
+        // own, ones its windows carry, ones its Start menu shortcut carries,
+        // and its exe path (for desktop apps without an ID).
+        let mut ids: Vec<String> = vec![key.to_string()];
         if let Some(id) = key.strip_prefix(PKG).or_else(|| key.strip_prefix(WEB)) {
             ids.push(id.to_string());
         }
         if let Some(ws) = groups.get(key) {
             ids.extend(ws.iter().filter_map(|w| w.app_id.as_ref().map(|i| i.to_lowercase())));
         }
-        let badge = ids.iter().find_map(|id| badges.get(id).cloned());
+        if let Some(more) = exe_ids.get(key) {
+            ids.extend(more.iter().cloned());
+        }
+        let wants_attention = windows.iter().any(|w| w.attention);
+        // The app's own badge first. If it has none but is asking for
+        // attention, show how many of its notifications are waiting.
+        let badge = ids.iter().find_map(|id| counts.badges.get(id).cloned()).or_else(|| {
+            let n = ids.iter().filter_map(|id| counts.waiting.get(id)).max().copied().unwrap_or(0);
+            (wants_attention && n > 0).then(|| if n > 9 { "9+".to_string() } else { n.to_string() })
+        });
         AppEntry {
             key: key.to_string(),
             name,
@@ -1134,4 +1186,35 @@ pub fn init(app: &AppHandle, window: &WebviewWindow) -> tauri::Result<()> {
     }
     notify();
     Ok(())
+}
+
+#[cfg(test)]
+mod badge_tests {
+    use super::*;
+
+    /// Reads this PC's notification store and Start menu (nothing is changed).
+    #[test]
+    #[ignore]
+    fn live_counts() {
+        com_init();
+        let c = crate::extras::read_notification_counts().unwrap();
+        let mut waiting: Vec<_> = c.waiting.iter().collect();
+        waiting.sort();
+        println!("badges: {:?}", c.badges);
+        println!("waiting: {waiting:?}");
+        let mut m = HashMap::new();
+        let menu = r"Microsoft\Windows\Start Menu\Programs";
+        for var in ["APPDATA", "ProgramData"] {
+            if let Some(base) = std::env::var_os(var) {
+                scan_exe_ids(&Path::new(&base).join(menu), 3, &mut m);
+            }
+        }
+        println!("exe ids: {}", m.len());
+        for (exe, ids) in m.iter().filter(|(_, ids)| ids.iter().any(|i| c.waiting.contains_key(i) || c.badges.contains_key(i))) {
+            println!("  matched {exe} -> {ids:?}");
+        }
+        // Claude (a Store app) is keyed by its app ID.
+        let claude = "claude_pzs8sxrjxfjjc!claude";
+        println!("claude waiting: {:?}", c.waiting.get(claude));
+    }
 }

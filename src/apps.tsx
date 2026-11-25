@@ -17,7 +17,7 @@ export type AppEntry = {
   launch: string;
   icon: string;
   windows: WindowInfo[];
-  /** Taskbar badge the app set: a count ("3", "99+") or "•". */
+  /** Taskbar badge the app set: a count ("3", "9+") or "•". */
   badge?: string;
   active: boolean;
   attention: boolean;

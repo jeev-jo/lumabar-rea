@@ -551,38 +551,78 @@ fn with_notification_db<R>(tag: &str, f: impl FnOnce(&rusqlite::Connection) -> R
     out
 }
 
-/// Taskbar badges by lower-cased app ID: a count ("3", "99+"), or "•" for a
-/// status glyph such as "newMessage" or "alert". Zero and "none" are left out.
-pub(crate) fn read_badges() -> Result<std::collections::HashMap<String, String>, String> {
+/// Badges and waiting notifications, both by lower-cased app ID.
+#[derive(Clone, Default, PartialEq)]
+pub(crate) struct NotificationCounts {
+    /// Taskbar badges: a count ("3", "9+"), or "•" for a status glyph such
+    /// as "newMessage" or "alert". Zero and "none" are left out.
+    pub badges: std::collections::HashMap<String, String>,
+    /// How many of each app's notifications are waiting in the notification center.
+    pub waiting: std::collections::HashMap<String, usize>,
+}
+
+/// Desktop apps without an app ID are recorded by path, with the first folder
+/// written as a known-folder GUID ("{6D809377-…}\Slack\slack.exe"). Spell it
+/// out, so it can be matched against the exe of a running window.
+fn expand_known_folder(id: &str) -> String {
+    let env = |v: &str| std::env::var(v).unwrap_or_default();
+    let windir = env("WINDIR");
+    let folders = [
+        ("{6d809377-6af0-444b-8957-a3773f02200e}", env("ProgramW6432")),
+        ("{7c5a40ef-a0fb-4bfc-874a-c0f2e0b9fa8e}", env("ProgramFiles(x86)")),
+        ("{905e63b6-c1bf-494e-b29c-65b732d3d21a}", env("ProgramFiles")),
+        ("{f38bf404-1d43-42f2-9305-67de0b28fc23}", windir.clone()),
+        ("{1ac14e77-02e7-4e5d-b744-2eb1ae5198b7}", format!("{windir}\\System32")),
+        ("{f1b32785-6fba-4fcf-9d55-7b8e7f157091}", env("LOCALAPPDATA")),
+        ("{3eb685db-65f9-4cf6-a03a-e3ef65729f3d}", env("APPDATA")),
+    ];
+    let lower = id.to_lowercase();
+    for (guid, path) in folders {
+        if let Some(rest) = lower.strip_prefix(guid) {
+            if !path.is_empty() {
+                return format!("{}{}", path.to_lowercase(), rest);
+            }
+        }
+    }
+    lower
+}
+
+pub(crate) fn read_notification_counts() -> Result<NotificationCounts, String> {
     with_notification_db("badges", |db| {
         let mut stmt = db
             .prepare(
-                "SELECT h.PrimaryId, n.Payload FROM Notification n JOIN NotificationHandler h ON h.RecordId = n.HandlerId \
-                 WHERE n.Type = 'badge' ORDER BY n.ArrivalTime",
+                "SELECT h.PrimaryId, n.Type, n.Payload FROM Notification n JOIN NotificationHandler h ON h.RecordId = n.HandlerId \
+                 WHERE n.Type IN ('badge', 'toast') ORDER BY n.ArrivalTime",
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
-            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<Vec<u8>>>(1)?.unwrap_or_default())))
+            .query_map([], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<Vec<u8>>>(2)?.unwrap_or_default()))
+            })
             .map_err(|e| e.to_string())?;
-        let mut out = std::collections::HashMap::new();
-        for (id, payload) in rows.flatten() {
+        let mut out = NotificationCounts::default();
+        for (id, kind, payload) in rows.flatten() {
+            let id = expand_known_folder(&id);
+            if kind == "toast" {
+                *out.waiting.entry(id).or_default() += 1;
+                continue;
+            }
             let xml = String::from_utf8_lossy(&payload);
             let Some(start) = xml.find("value=\"").map(|i| i + 7) else { continue };
             let value = xml[start..].split('"').next().unwrap_or_default().trim().to_string();
             let shown = match value.parse::<u32>() {
                 Ok(0) => None,
-                Ok(n) if n > 99 => Some("99+".to_string()),
+                Ok(n) if n > 9 => Some("9+".to_string()),
                 Ok(n) => Some(n.to_string()),
                 Err(_) if value.is_empty() || value == "none" => None,
                 Err(_) => Some("•".to_string()),
             };
-            let id = id.to_lowercase();
             match shown {
                 Some(v) => {
-                    out.insert(id, v);
+                    out.badges.insert(id, v);
                 }
                 None => {
-                    out.remove(&id);
+                    out.badges.remove(&id);
                 }
             }
         }
